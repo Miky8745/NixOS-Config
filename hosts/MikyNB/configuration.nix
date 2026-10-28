@@ -277,6 +277,9 @@
     pavucontrol
   ];
 
+  nixpkgs.config.allowUnfreePredicate = pkg:
+    builtins.elem (pkgs.lib.getName pkg) [ "claude-code" ];
+
   # ---------- Nix itself ----------
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
