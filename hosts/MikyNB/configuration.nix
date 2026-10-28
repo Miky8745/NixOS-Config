@@ -80,10 +80,10 @@
 
   # ---------- Desktop: niri (Wayland) ----------
   programs.niri.enable = true;
-  # xdg-desktop-portal-gnome (screencast) wants Nautilus as the file-chooser backend.
-  programs.niri.useNautilus = true;
-  services.gvfs.enable = true; # trash, network places, mounting for Nautilus
-  services.udisks2.enable = true; # removable-drive mounting for Nautilus
+  # File manager is Dolphin (see packages below), so the portal's file-chooser
+  # falls back to its GTK implementation instead of Nautilus.
+  services.gvfs.enable = true; # trash/network places for the GTK file-chooser portal
+  services.udisks2.enable = true; # removable-drive mounting (also used by Dolphin)
 
   # SDDM greeter, running on Wayland (no Xorg needed just for login).
   services.displayManager.sddm = {
@@ -200,21 +200,28 @@
     xwayland-satellite
     alacritty
 
-    # GTK app replacements for the former KDE apps (Dolphin/Kate/Ark/Gwenview/Okular/...)
-    nautilus
+    # Replacements for the former KDE apps (Kate/Ark/Gwenview/Okular/...).
+    # Dolphin itself is kept (GTK file managers were worse to live with day to
+    # day) - it pulls in KDE Frameworks (KIO, Breeze icons) as runtime libs,
+    # same category as kdeconnect, but needs no Plasma session/desktop manager.
+    kdePackages.dolphin
     papers # PDF/document viewer, replaces Okular
     gnome-calculator
     file-roller # archive manager, replaces Ark
     loupe # image viewer, replaces Gwenview
     gparted # replaces KDE Partition Manager
-    ffmpegthumbnailer # video thumbnails in Nautilus, replaces ffmpegthumbs
+    ffmpegthumbnailer # generic video thumbnailer, replaces ffmpegthumbs
 
     # Internet / communication
     # Vivaldi's native-Wayland GPU path is unreliable on niri with this
-    # NVIDIA legacy driver (GPU process crash-loops, which Vivaldi then
-    # treats as a dirty shutdown and offers to discard the saved session).
-    # Force it through XWayland instead, which is the well-tested path.
-    (vivaldi.override { commandLineArgs = "--ozone-platform=x11"; })
+    # NVIDIA legacy driver, so force it through XWayland (--ozone-platform=x11).
+    # Also: Vivaldi auto-picks its OS keystore backend (gnome-libsecret vs
+    # kwallet vs basic) by sniffing $XDG_CURRENT_DESKTOP, and niri isn't a
+    # desktop Chromium's detection recognizes - it was landing somewhere
+    # inconsistent instead of reliably hitting gnome-keyring, which is what
+    # the sync-encryption key (and saved passwords/cookies) live in. Pin it
+    # explicitly so it's always the same, correctly-PAM-unlocked keyring.
+    (vivaldi.override { commandLineArgs = "--ozone-platform=x11 --password-store=gnome-libsecret"; })
     discord
     element-desktop
     filezilla
@@ -317,10 +324,22 @@
     experimental-features = [ "nix-command" "flakes" ];
     auto-optimise-store = true;
   };
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 14d";
+  # Automatic garbage collection via nh (also prunes gcroots, e.g. stale
+  # `result` symlinks from builds, which plain nix-collect-garbage leaves
+  # behind and which would otherwise keep their build inputs alive forever).
+  # Policy: always keep the last 5 generations, plus anything from the last
+  # 7 days no matter how many that is (so a quiet week still has history,
+  # and a busy day of rebuilds doesn't get thinned to one-per-day - see the
+  # chat for why that's not quite "5 + 1/day + 0/week" but a close, simpler
+  # stand-in). Checked daily; a day with nothing to do is a no-op.
+  programs.nh = {
+    enable = true;
+    clean = {
+      enable = true;
+      dates = "daily";
+      extraArgs = "--keep 5 --keep-since 7d";
+    };
+    flake = "/home/miky8745/Programming/nixos_conf";
   };
 
   # Set once at install time. Do NOT change it when upgrading NixOS.
