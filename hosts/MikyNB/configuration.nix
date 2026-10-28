@@ -81,8 +81,13 @@
   # No cursor theme exists anywhere by default, so the pointer is invisible
   # on the SDDM greeter / qylock lock screen (these run before the user's
   # home-manager session - and its env vars - exist). Home Manager's
-  # home.pointerCursor (see theme.nix) covers the post-login session; this
-  # covers everything that runs before that.
+  # home.pointerCursor (see theme.nix) covers the post-login session.
+  #
+  # environment.variables only reaches interactive login shells (via
+  # /etc/profile and PAM) - display-manager.service starts well before any
+  # of that, so this alone never reached the greeter. It's set anyway for
+  # anything that *does* go through a login shell; the actual greeter fix
+  # is systemd.services.display-manager.environment below.
   environment.variables = {
     XCURSOR_THEME = "Adwaita";
     XCURSOR_SIZE = "24";
@@ -115,17 +120,32 @@
   services.udisks2.enable = true; # removable-drive mounting (also used by Dolphin)
 
   # SDDM greeter, running on Wayland (no Xorg needed just for login).
+  #
+  # sddm.conf's [Theme] CursorTheme/CursorSize look like the obvious place
+  # to fix the greeter's invisible cursor, but SDDM only applies those
+  # through its X11 setup path (xsetroot-style, "Setting default cursor" in
+  # its own log output) - that code never runs in Wayland mode, so the
+  # setting is silently a no-op here. XCURSOR_THEME has to reach the
+  # greeter/Weston process's actual environment instead, which systemd
+  # units don't get from environment.variables (PAM/login-shell only) -
+  # `systemctl show-environment` confirms display-manager.service's
+  # environment has no XCURSOR_* at all without this.
+  #
+  # Naming the theme is not enough on its own: libwayland-cursor's built-in
+  # search path (no XCURSOR_PATH set) is
+  # "/icons:~/.icons:/usr/share/icons:/usr/share/pixmaps:...", none of
+  # which exist on NixOS. The Adwaita cursor theme (from
+  # environment.systemPackages' adwaita-icon-theme) only exists under
+  # /run/current-system/sw/share/icons, so that has to be added explicitly
+  # or XCURSOR_THEME names a theme that still can't be found.
+  systemd.services.display-manager.environment = {
+    XCURSOR_THEME = "Adwaita";
+    XCURSOR_SIZE = "24";
+    XCURSOR_PATH = "/run/current-system/sw/share/icons";
+  };
   services.displayManager.sddm = {
     enable = true;
     wayland.enable = true;
-    # SDDM sets XCURSOR_THEME itself before starting the greeter (sddm.conf's
-    # [Theme] CursorTheme, defaulting to "default") - that overrides the
-    # environment.variables.XCURSOR_THEME set below, which is why the cursor
-    # stayed invisible on the greeter/lock screen even with that set.
-    settings.Theme = {
-      CursorTheme = "Adwaita";
-      CursorSize = 24;
-    };
     # The greeter's own compositor (Weston) has no equivalent of niri's
     # "debug { disable-direct-scanout }" (see niri.nix) - on this Maxwell
     # Nvidia GPU, Weston's default DRM-plane direct scan-out is what
