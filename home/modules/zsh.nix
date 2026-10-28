@@ -33,8 +33,6 @@
 
     initContent = lib.mkMerge [
       ''
-        PROMPT='[%n@%m %c] %# '
-
         # NVM (prebuilt Node binaries run thanks to programs.nix-ld)
         export NVM_DIR="$HOME/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"

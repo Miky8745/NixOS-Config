@@ -78,6 +78,20 @@
   console.keyMap = "us";
   services.xserver.xkb.layout = "us";
 
+  # ---------- Fonts ----------
+  # Nerd Font patched variant, so terminal icon glyphs (oh-my-zsh's agnoster
+  # theme, etc.) exist at all and render at the right cell width.
+  fonts.packages = [ pkgs.nerd-fonts.jetbrains-mono ];
+
+  # ---------- Qt dark theme ----------
+  # GTK's dconf dark-mode setting (see home-manager) doesn't reach Qt apps -
+  # Qt has its own, separate theming, normally fed by Plasma. Dolphin is a Qt
+  # app, so without this it just falls back to a plain light style.
+  qt = {
+    enable = true;
+    style = "adwaita-dark";
+  };
+
   # ---------- Desktop: niri (Wayland) ----------
   programs.niri.enable = true;
   # File manager is Dolphin (see packages below), so the portal's file-chooser
@@ -92,6 +106,10 @@
   };
 
   programs.kdeconnect.enable = true; # also opens its firewall ports
+
+  # Lock screen: Quickshell (see home-manager), authenticating through plain
+  # pam_unix - the same mechanism the stock "swaylock" PAM service uses.
+  security.pam.services.quickshell-lock = {};
 
   # ---------- Audio / Bluetooth ----------
   security.rtkit.enable = true;
@@ -191,7 +209,8 @@
     fuzzel
     mako
     swaybg
-    swaylock
+    swaylock # kept as an emergency fallback; the active lock bind is quickshell below
+    quickshell
     waypaper
     polkit_gnome
     libnotify
@@ -223,7 +242,12 @@
     # explicitly so it's always the same, correctly-PAM-unlocked keyring.
     (vivaldi.override { commandLineArgs = "--ozone-platform=x11 --password-store=gnome-libsecret"; })
     discord
-    element-desktop
+    # Same root cause as the Vivaldi fix above: Electron auto-picks a
+    # keyring backend by sniffing $XDG_CURRENT_DESKTOP, doesn't recognize
+    # niri, and ends up somewhere broken - hence "Unsupported keyring".
+    # Element treats this as fatal (it's guarding E2EE key storage, not
+    # just saved passwords), so pin it explicitly to gnome-keyring too.
+    (element-desktop.override { commandLineArgs = "--password-store=gnome-libsecret"; })
     filezilla
     remmina
     freerdp
@@ -258,7 +282,11 @@
     gdlauncher-carbon
 
     # Development
-    vscode
+    # VSCodium: same editor, built from the same Code - OSS source, but
+    # fully open-source - no MS telemetry, no Copilot, Open VSX marketplace
+    # instead of the proprietary MS one. Settings/extensions/keybindings
+    # are compatible with VS Code, just stored under ~/.config/VSCodium.
+    vscodium
     git
     lazygit
     godot

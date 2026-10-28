@@ -3,8 +3,14 @@
 # This starts from niri's own documented default config, trimmed of the
 # autostart line (waybar is started via its own systemd service instead)
 # and extended with polkit + wallpaper-restore on login.
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 
+let
+  # Guard against stacking a second lock surface if this fires while
+  # already locked.
+  lockCmd = "${pkgs.procps}/bin/pgrep -f quickshell-lock/shell.qml"
+    + " || ${pkgs.quickshell}/bin/quickshell -p ${config.home.homeDirectory}/.config/quickshell-lock/shell.qml";
+in
 {
   xdg.configFile."niri/config.kdl".text = ''
     input {
@@ -59,7 +65,13 @@
     // services (see programs.waybar / services.mako / services.swayidle),
     // not spawned here.
     spawn-at-startup "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1"
-    spawn-sh-at-startup "${pkgs.waypaper}/bin/waypaper --restore"
+    // Pinned directly to the one image in ~/Background - simplest option,
+    // and consistent with everything else here being declarative (edit this
+    // file + rebuild to change it). waypaper (still installed) can pick a
+    // different wallpaper interactively, but its own saved choice wouldn't
+    // survive a rebuild unless this line is updated to match - ask if you'd
+    // rather have waypaper's picker be the source of truth instead.
+    spawn-sh-at-startup "${pkgs.swaybg}/bin/swaybg -i ~/Background/gargantua-black-5200x3250-9621.jpg -m fill"
 
     hotkey-overlay {
     }
@@ -94,7 +106,7 @@
 
         Mod+T hotkey-overlay-title="Open a Terminal: alacritty" { spawn "alacritty"; }
         Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
-        Super+Alt+L hotkey-overlay-title="Lock the Screen: swaylock" { spawn "swaylock"; }
+        Super+Alt+L hotkey-overlay-title="Lock the Screen: quickshell" { spawn-sh "${lockCmd}"; }
 
         XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.05+ -l 1.0"; }
         XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.05-"; }
