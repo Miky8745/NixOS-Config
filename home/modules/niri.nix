@@ -132,6 +132,16 @@ in
         draw-border-with-background false
     }
 
+    // Super-slight rounding on every window. niri has no "is-maximized"
+    // match predicate (open feature request upstream) to exclude maximized/
+    // fullscreen windows specifically, but at this small a radius the
+    // corner-clip on those is basically imperceptible, and `gaps` already
+    // keeps normal tiled windows off the screen edge anyway.
+    window-rule {
+        geometry-corner-radius 4
+        clip-to-geometry true
+    }
+
     binds {
         Mod+Shift+Slash { show-hotkey-overlay; }
 
