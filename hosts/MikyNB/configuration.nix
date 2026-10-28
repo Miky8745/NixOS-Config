@@ -231,6 +231,7 @@
     nodejs
     pnpm
     yarn
+    claude-code
     uv
     pipx
     (python3.withPackages (ps: with ps; [ numpy pyqt6 shapely tqdm jinja2 ]))
@@ -276,9 +277,6 @@
     qdirstat
     pavucontrol
   ];
-
-  nixpkgs.config.allowUnfreePredicate = pkg:
-    builtins.elem (pkgs.lib.getName pkg) [ "claude-code" ];
 
   # ---------- Nix itself ----------
   nix.settings = {
