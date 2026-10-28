@@ -1,12 +1,14 @@
 # Idle handling that Plasma's powerdevil used to provide: lock the session
 # after inactivity, then turn the screens off, and always lock before suspend.
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 
 let
   # Guard against stacking a second lock surface if this fires while already
-  # locked (e.g. idle timeout right after a manual lock).
-  lockCmd = "${pkgs.procps}/bin/pgrep -f quickshell-lock/shell.qml"
-    + " || ${pkgs.quickshell}/bin/quickshell -p ${config.home.homeDirectory}/.config/quickshell-lock/shell.qml";
+  # locked (e.g. idle timeout right after a manual lock). See niri.nix for
+  # why QT_QPA_PLATFORM is forced here (environment.nix's xcb override
+  # otherwise breaks Quickshell's session-lock protocol support).
+  lockCmd = "${pkgs.procps}/bin/pgrep -f lock_shell.qml"
+    + " || QT_QPA_PLATFORM=wayland qylock-lock";
 in
 {
   services.swayidle = {

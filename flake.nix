@@ -11,14 +11,19 @@
       url = "github:nix-community/disko/latest";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    qylock = {
+      url = "github:Darkkal44/qylock";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { nixpkgs, home-manager, disko, ... }: {
+  outputs = { nixpkgs, home-manager, disko, qylock, ... }: {
     nixosConfigurations.MikyNB = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
         ./hosts/MikyNB/configuration.nix
         disko.nixosModules.disko
+        qylock.nixosModules.default
         home-manager.nixosModules.home-manager
         {
           home-manager.useGlobalPkgs = true;

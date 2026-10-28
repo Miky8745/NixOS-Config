@@ -3,20 +3,29 @@
 # This starts from niri's own documented default config, trimmed of the
 # autostart line (waybar is started via its own systemd service instead)
 # and extended with polkit + wallpaper-restore on login.
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 
 let
   # Guard against stacking a second lock surface if this fires while
-  # already locked.
-  lockCmd = "${pkgs.procps}/bin/pgrep -f quickshell-lock/shell.qml"
-    + " || ${pkgs.quickshell}/bin/quickshell -p ${config.home.homeDirectory}/.config/quickshell-lock/shell.qml";
+  # already locked. qylock-lock (programs.qylock, see configuration.nix)
+  # ultimately execs `quickshell -p .../lock_shell.qml`, which is what
+  # actually shows up in the process list.
+  #
+  # QT_QPA_PLATFORM=wayland is forced here because home-manager's
+  # environment.nix sets it to "xcb" session-wide for Haruna/DaVinci - under
+  # that override Quickshell can't use ext-session-lock-v1 at all ("Cannot
+  # start session lock: The current compositor does not support the
+  # ext-session-lock-v1 protocol"), which is why the old lock bind silently
+  # failed.
+  lockCmd = "${pkgs.procps}/bin/pgrep -f lock_shell.qml"
+    + " || QT_QPA_PLATFORM=wayland qylock-lock";
 in
 {
   xdg.configFile."niri/config.kdl".text = ''
     input {
         keyboard {
             xkb {
-                layout "us"
+                layout "us,cz(qwerty)"
             }
             numlock
         }
@@ -73,6 +82,18 @@ in
     // rather have waypaper's picker be the source of truth instead.
     spawn-sh-at-startup "${pkgs.swaybg}/bin/swaybg -i ~/Background/gargantua-black-5200x3250-9621.jpg -m fill"
 
+    // Apps installed via environment.systemPackages in
+    // hosts/MikyNB/configuration.nix - already on $PATH, so bare command
+    // names (same as the alacritty/fuzzel binds above) are enough.
+    spawn-at-startup "element-desktop"
+    spawn-at-startup "discord"
+    spawn-at-startup "vivaldi"
+    // programs.kdeconnect.enable (configuration.nix) only installs the
+    // package and opens the firewall ports - it starts no daemon. The
+    // indicator binary is what actually gets kdeconnectd running too (DBus
+    // activates it on demand), so spawning just the indicator is enough.
+    spawn-at-startup "kdeconnect-indicator"
+
     hotkey-overlay {
     }
 
@@ -101,12 +122,23 @@ in
         open-floating true
     }
 
+    // Alacritty is semi-transparent (see home/modules/alacritty.nix). By
+    // default niri draws the focus-ring as a solid filled rectangle behind
+    // the window, so that fill bleeds through and makes the terminal look
+    // opaque/tinted blue when focused. This stops the fill from being drawn
+    // behind it, leaving just the thin ring border.
+    window-rule {
+        match app-id=r#"Alacritty"#
+        draw-border-with-background false
+    }
+
     binds {
         Mod+Shift+Slash { show-hotkey-overlay; }
 
         Mod+T hotkey-overlay-title="Open a Terminal: alacritty" { spawn "alacritty"; }
         Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
-        Super+Alt+L hotkey-overlay-title="Lock the Screen: quickshell" { spawn-sh "${lockCmd}"; }
+        Mod+L hotkey-overlay-title="Lock the Screen: qylock" { spawn-sh "${lockCmd}"; }
+        Mod+Space hotkey-overlay-title="Switch Keyboard Layout" { switch-layout "next"; }
 
         XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.05+ -l 1.0"; }
         XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.05-"; }
@@ -134,7 +166,7 @@ in
         Mod+H     { focus-column-left; }
         Mod+J     { focus-window-down; }
         Mod+K     { focus-window-up; }
-        Mod+L     { focus-column-right; }
+        // Mod+L is taken by the lock bind above; use Mod+Right for this.
 
         Mod+Ctrl+Left  { move-column-left; }
         Mod+Ctrl+Down  { move-window-down; }

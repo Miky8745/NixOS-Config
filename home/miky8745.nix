@@ -11,7 +11,6 @@
     ./modules/fuzzel.nix
     ./modules/mako.nix
     ./modules/swayidle.nix
-    ./modules/quickshell-lock.nix
     ./modules/alacritty.nix
     ./modules/theme.nix
     ./modules/environment.nix

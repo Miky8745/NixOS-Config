@@ -2,7 +2,7 @@
   programs.alacritty = {
     enable = true;
     settings = {
-      window.opacity = 0.95;
+      window.opacity = 0.8;
       window.decorations = "None"; # no title bar / min-max-close buttons
 
       font = {

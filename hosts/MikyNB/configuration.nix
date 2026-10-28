@@ -87,9 +87,14 @@
   # GTK's dconf dark-mode setting (see home-manager) doesn't reach Qt apps -
   # Qt has its own, separate theming, normally fed by Plasma. Dolphin is a Qt
   # app, so without this it just falls back to a plain light style.
+  # platformTheme "gnome" makes Qt read the same GSettings/dconf
+  # color-scheme=prefer-dark the GTK apps already use (see home-manager's
+  # theme.nix) - without it, style=adwaita-dark only changes widget drawing,
+  # not the palette KDE Frameworks apps like Dolphin actually paint with.
   qt = {
     enable = true;
     style = "adwaita-dark";
+    platformTheme = "gnome";
   };
 
   # ---------- Desktop: niri (Wayland) ----------
@@ -107,9 +112,15 @@
 
   programs.kdeconnect.enable = true; # also opens its firewall ports
 
-  # Lock screen: Quickshell (see home-manager), authenticating through plain
-  # pam_unix - the same mechanism the stock "swaylock" PAM service uses.
-  security.pam.services.quickshell-lock = {};
+  # Lock screen + SDDM greeter: qylock (github:Darkkal44/qylock), "enfield"
+  # theme. Its Quickshell lock authenticates through PAM's default "login"
+  # service (not a dedicated one), and runs third-party QML - a deliberate
+  # trust tradeoff over the previous hand-rolled pam_unix-only setup, made
+  # knowingly rather than by default.
+  programs.qylock = {
+    enable = true;
+    theme = "enfield";
+  };
 
   # ---------- Audio / Bluetooth ----------
   security.rtkit.enable = true;
@@ -209,7 +220,7 @@
     fuzzel
     mako
     swaybg
-    swaylock # kept as an emergency fallback; the active lock bind is quickshell below
+    swaylock # kept as an emergency fallback; the active lock bind is qylock (programs.qylock above)
     quickshell
     waypaper
     polkit_gnome
@@ -298,7 +309,6 @@
     prusa-slicer
     arduino-ide
     rpi-imager
-    satdump
 
     # Games
     osu-lazer-bin
