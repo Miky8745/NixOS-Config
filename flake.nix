@@ -20,6 +20,7 @@
   outputs = { nixpkgs, home-manager, disko, qylock, ... }:
     let
       system = "x86_64-linux";
+      pkgs = nixpkgs.legacyPackages.${system};
 
       # Every theme qylock ships calls `keyboard.numLock = true` in
       # Component.onCompleted - copy-pasted from real SDDM greeter QML,
@@ -29,12 +30,27 @@
       # that line throws a ReferenceError early enough that Quickshell
       # aborts before the lock surface is actually presented - Mod+L
       # (see niri.nix) silently does nothing. Patch in a no-op stand-in.
+      #
+      # Separately, video-background themes (e.g. "enfield") render only
+      # their particle overlay and no actual video: the makeWrapper call in
+      # qylock's own flake sets QML2_IMPORT_PATH/QML_IMPORT_PATH (for QML
+      # modules) but never QT_PLUGIN_PATH, so Qt Multimedia can't find
+      # either of qtmultimedia's bundled backend plugins (ffmpeg/gstreamer)
+      # and silently has no backend at all ("No QtMultimedia backends
+      # found" at runtime). Re-wrap with QT_PLUGIN_PATH set and the ffmpeg
+      # backend pinned explicitly (fewer runtime deps than gstreamer, which
+      # would also need its own plugin scanning/cache).
       qylockQuickshellPatched = (qylock.legacyPackages.${system}.mkQuickshell {
         defaultTheme = "enfield";
       }).overrideAttrs (old: {
         postPatch = (old.postPatch or "") + ''
           sed -i '/id: shim/a\    property var keyboard: QtObject { property bool numLock: false }' \
             quickshell-lockscreen/shim/SddmShim.qml
+        '';
+        postInstall = (old.postInstall or "") + ''
+          wrapProgram $out/bin/qylock-lock \
+            --suffix QT_PLUGIN_PATH : "${pkgs.qt6.qtmultimedia}/lib/qt-6/plugins" \
+            --set-default QT_MEDIA_BACKEND ffmpeg
         '';
       });
     in {

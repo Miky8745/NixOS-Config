@@ -118,6 +118,14 @@
   services.displayManager.sddm = {
     enable = true;
     wayland.enable = true;
+    # SDDM sets XCURSOR_THEME itself before starting the greeter (sddm.conf's
+    # [Theme] CursorTheme, defaulting to "default") - that overrides the
+    # environment.variables.XCURSOR_THEME set below, which is why the cursor
+    # stayed invisible on the greeter/lock screen even with that set.
+    settings.Theme = {
+      CursorTheme = "Adwaita";
+      CursorSize = 24;
+    };
     # The greeter's own compositor (Weston) has no equivalent of niri's
     # "debug { disable-direct-scanout }" (see niri.nix) - on this Maxwell
     # Nvidia GPU, Weston's default DRM-plane direct scan-out is what
