@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 {
   imports = [
@@ -32,6 +32,24 @@
     modesetting.enable = true;
     powerManagement.enable = true; # suspend/hibernate (nvidia-suspend services)
     nvidiaSettings = true;
+
+    moduleParams = {
+      # nixpkgs auto-enables nvidia-drm.fbdev for driver >=545 whenever
+      # modesetting is on (this laptop ran the same 580xx driver on Arch
+      # without glitching, where fbdev isn't on by default) - the fbdev
+      # console framebuffer handoff is a known source of visual corruption
+      # on some hardware, so turn it back off.
+      "nvidia-drm".fbdev = lib.mkForce 0;
+
+      # Maxwell/Pascal mobile GPUs have a known bug where dynamic P-state
+      # switching (this card idles at P8/135MHz between frames) causes
+      # visual corruption. Forcing max performance avoids the reclocking.
+      # Trade-off: higher idle power draw/heat on battery. Speculative -
+      # commented out to test fbdev=0 alone first; re-enable if glitching
+      # persists.
+      # nvidia.NVreg_RegistryDwords =
+      #   ''"PowerMizerEnable=0x1; PerfLevelSrc=0x2222; PowerMizerLevel=0x3; PowerMizerDefault=0x3; PowerMizerDefaultAC=0x3"'';
+    };
   };
 
   # ---------- Networking ----------
