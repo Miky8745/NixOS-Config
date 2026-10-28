@@ -11,13 +11,22 @@ let
   # ultimately execs `quickshell -p .../lock_shell.qml`, which is what
   # actually shows up in the process list.
   #
+  # Must match by process name (-x), not full command line (-f): swayidle
+  # (services.swayidle, home/modules/swayidle.nix) is a long-running daemon
+  # whose own argv literally contains the string "lock_shell.qml" - because
+  # that's the text of this very lockCmd passed in as ITS command argument.
+  # `pgrep -f lock_shell.qml` matches against full command lines, so it was
+  # matching swayidle itself and always short-circuiting the `||`, meaning
+  # qylock-lock never ran - not from Mod+L, not from idle timeout, not
+  # before sleep. This is what actually caused "Super+L doesn't lock".
+  #
   # QT_QPA_PLATFORM=wayland is forced here because home-manager's
   # environment.nix sets it to "xcb" session-wide for Haruna/DaVinci - under
   # that override Quickshell can't use ext-session-lock-v1 at all ("Cannot
   # start session lock: The current compositor does not support the
   # ext-session-lock-v1 protocol"), which is why the old lock bind silently
   # failed.
-  lockCmd = "${pkgs.procps}/bin/pgrep -f lock_shell.qml"
+  lockCmd = "${pkgs.procps}/bin/pgrep -x quickshell"
     + " || QT_QPA_PLATFORM=wayland qylock-lock";
 in
 {
