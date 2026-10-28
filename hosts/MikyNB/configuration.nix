@@ -224,6 +224,10 @@
     # day) - it pulls in KDE Frameworks (KIO, Breeze icons) as runtime libs,
     # same category as kdeconnect, but needs no Plasma session/desktop manager.
     kdePackages.dolphin
+    # Dolphin has no built-in smb://, sftp://, etc. support - those protocol
+    # workers are a separate KIO plugin package. Another incremental
+    # KDE-stack dependency, same tradeoff as Dolphin itself.
+    kdePackages.kio-extras
     papers # PDF/document viewer, replaces Okular
     gnome-calculator
     file-roller # archive manager, replaces Ark
@@ -247,7 +251,26 @@
     # niri, and ends up somewhere broken - hence "Unsupported keyring".
     # Element treats this as fatal (it's guarding E2EE key storage, not
     # just saved passwords), so pin it explicitly to gnome-keyring too.
-    (element-desktop.override { commandLineArgs = "--password-store=gnome-libsecret"; })
+    #
+    # Unlike Vivaldi, `element-desktop.override { commandLineArgs = ...; }`
+    # changes the derivation hash to one Hydra never built, forcing a full
+    # local rebuild through Electron's own pnpm/node-gyp/seshat toolchain -
+    # genuinely expensive, unlike Vivaldi's cheap unpack-and-patch. Instead,
+    # leave the real `element-desktop` alone (stays prebuilt, fetched from
+    # cache) and just wrap its binary in a second, tiny derivation - its
+    # .desktop file execs the bare command "element-desktop", so this wrapper
+    # being the only one of that name on PATH is enough for launcher icons
+    # to pick it up too, not just terminal/niri-bound launches.
+    (symlinkJoin {
+      name = "element-desktop-wrapped";
+      paths = [ element-desktop ];
+      nativeBuildInputs = [ makeWrapper ];
+      postBuild = ''
+        rm $out/bin/element-desktop
+        makeWrapper ${element-desktop}/bin/element-desktop $out/bin/element-desktop \
+          --add-flags "--password-store=gnome-libsecret"
+      '';
+    })
     filezilla
     remmina
     freerdp
