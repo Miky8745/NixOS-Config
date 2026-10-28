@@ -28,7 +28,7 @@
       ls = "ls --color=auto";
       ll = "ls -lh --color=auto";
       la = "ls -lha --color=auto";
-      rebuild-nixos = "cd ~/Programming/nixos_conf && sudo nh os switch";
+      rebuild-nixos = "cd ~/Programming/nixos_conf && nh os switch"; # nh self-elevates; don't sudo it
     };
 
     initContent = lib.mkMerge [
