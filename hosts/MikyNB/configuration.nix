@@ -78,6 +78,16 @@
   console.keyMap = "us";
   services.xserver.xkb.layout = "us";
 
+  # No cursor theme exists anywhere by default, so the pointer is invisible
+  # on the SDDM greeter / qylock lock screen (these run before the user's
+  # home-manager session - and its env vars - exist). Home Manager's
+  # home.pointerCursor (see theme.nix) covers the post-login session; this
+  # covers everything that runs before that.
+  environment.variables = {
+    XCURSOR_THEME = "Adwaita";
+    XCURSOR_SIZE = "24";
+  };
+
   # ---------- Fonts ----------
   # Nerd Font patched variant, so terminal icon glyphs (oh-my-zsh's agnoster
   # theme, etc.) exist at all and render at the right cell width.
@@ -108,6 +118,30 @@
   services.displayManager.sddm = {
     enable = true;
     wayland.enable = true;
+    # The greeter's own compositor (Weston) has no equivalent of niri's
+    # "debug { disable-direct-scanout }" (see niri.nix) - on this Maxwell
+    # Nvidia GPU, Weston's default DRM-plane direct scan-out is what
+    # produces the severe pre-login flicker/corruption. Forcing the pixman
+    # (CPU) renderer makes Weston composite everything instead of handing
+    # buffers straight to a hardware plane, which is the same workaround
+    # niri already applies for the actual desktop session.
+    wayland.compositorCommand = lib.mkForce (
+      let
+        westonIni = (pkgs.formats.ini { }).generate "weston.ini" {
+          libinput = {
+            enable-tap = config.services.libinput.mouse.tapping;
+            left-handed = config.services.libinput.mouse.leftHanded;
+          };
+          keyboard = {
+            keymap_model = config.services.xserver.xkb.model;
+            keymap_layout = config.services.xserver.xkb.layout;
+            keymap_variant = config.services.xserver.xkb.variant;
+            keymap_options = config.services.xserver.xkb.options;
+          };
+        };
+      in
+      "${lib.getExe pkgs.weston} --shell=kiosk --renderer=pixman -c ${westonIni}"
+    );
   };
 
   programs.kdeconnect.enable = true; # also opens its firewall ports
@@ -215,6 +249,11 @@
 
   # ---------- Packages ----------
   environment.systemPackages = with pkgs; [
+    # Cursor theme for everything that runs before home-manager's session
+    # env vars exist (SDDM greeter, qylock lock screen) - see
+    # environment.variables.XCURSOR_THEME above.
+    adwaita-icon-theme
+
     # niri desktop (bar, launcher, notifications, lock, wallpaper, polkit, XWayland compat)
     waybar
     fuzzel
