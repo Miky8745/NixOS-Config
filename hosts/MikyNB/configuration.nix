@@ -210,7 +210,11 @@
     ffmpegthumbnailer # video thumbnails in Nautilus, replaces ffmpegthumbs
 
     # Internet / communication
-    vivaldi
+    # Vivaldi's native-Wayland GPU path is unreliable on niri with this
+    # NVIDIA legacy driver (GPU process crash-loops, which Vivaldi then
+    # treats as a dirty shutdown and offers to discard the saved session).
+    # Force it through XWayland instead, which is the well-tested path.
+    (vivaldi.override { commandLineArgs = "--ozone-platform=x11"; })
     discord
     element-desktop
     filezilla
