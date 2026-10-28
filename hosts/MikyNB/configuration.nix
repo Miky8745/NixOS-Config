@@ -67,8 +67,11 @@
   services.gvfs.enable = true; # trash, network places, mounting for Nautilus
   services.udisks2.enable = true; # removable-drive mounting for Nautilus
 
-  # Graphical greeter (GTK, runs under a tiny "cage" compositor) - replaces SDDM.
-  programs.regreet.enable = true;
+  # SDDM greeter, running on Wayland (no Xorg needed just for login).
+  services.displayManager.sddm = {
+    enable = true;
+    wayland.enable = true;
+  };
 
   programs.kdeconnect.enable = true; # also opens its firewall ports
 

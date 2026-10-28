@@ -129,6 +129,13 @@
     animations {
     }
 
+    // Nvidia's direct-scanout path has known corruption/flicker bugs on
+    // proprietary drivers (same class of bug KWin works around on Nvidia);
+    // this disables it so niri always composites instead.
+    debug {
+        disable-direct-scanout
+    }
+
     // Open Vivaldi's picture-in-picture player as floating by default.
     // Chromium-based browsers can report a slightly different app-id; run
     // `niri msg windows` while the PiP player is open to confirm/adjust this.
@@ -158,11 +165,8 @@
         XF86MonBrightnessUp   allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "+10%"; }
         XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "10%-"; }
 
-        XF86TouchpadToggle repeat=false { toggle-touchpad; }
 
-        Mod {
-            release { toggle-overview; }
-        }
+        Mod+O repeat=false { toggle-overview; }
 
         Mod+Q repeat=false { close-window; }
 
