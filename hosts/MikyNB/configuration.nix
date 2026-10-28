@@ -60,12 +60,16 @@
   console.keyMap = "us";
   services.xserver.xkb.layout = "us";
 
-  # ---------- Desktop: KDE Plasma 6 on Wayland ----------
-  services.desktopManager.plasma6.enable = true;
-  services.displayManager.sddm = {
-    enable = true;
-    wayland.enable = true;
-  };
+  # ---------- Desktop: niri (Wayland) ----------
+  programs.niri.enable = true;
+  # xdg-desktop-portal-gnome (screencast) wants Nautilus as the file-chooser backend.
+  programs.niri.useNautilus = true;
+  services.gvfs.enable = true; # trash, network places, mounting for Nautilus
+  services.udisks2.enable = true; # removable-drive mounting for Nautilus
+
+  # Graphical greeter (GTK, runs under a tiny "cage" compositor) - replaces SDDM.
+  programs.regreet.enable = true;
+
   programs.kdeconnect.enable = true; # also opens its firewall ports
 
   # ---------- Audio / Bluetooth ----------
@@ -161,23 +165,28 @@
 
   # ---------- Packages ----------
   environment.systemPackages = with pkgs; [
-    # KDE apps (core Plasma apps like Dolphin/Konsole come with plasma6)
-    kdePackages.kate
-    kdePackages.kcalc
-    kdePackages.ark
-    kdePackages.gwenview
-    kdePackages.okular
-    kdePackages.filelight
-    kdePackages.kio-admin
-    kdePackages.kio-fuse
-    kdePackages.ffmpegthumbs
-    kdePackages.kdegraphics-thumbnailers
-    kdePackages.dolphin-plugins
-    kdePackages.kwalletmanager
-    kdePackages.sddm-kcm
-    kdePackages.kdenetwork-filesharing
-    kdePackages.partitionmanager
-    haruna
+    # niri desktop (bar, launcher, notifications, lock, wallpaper, polkit, XWayland compat)
+    waybar
+    fuzzel
+    mako
+    swaybg
+    swaylock
+    waypaper
+    polkit_gnome
+    libnotify
+    brightnessctl
+    playerctl
+    xwayland-satellite
+    alacritty
+
+    # GTK app replacements for the former KDE apps (Dolphin/Kate/Ark/Gwenview/Okular/...)
+    nautilus
+    papers # PDF/document viewer, replaces Okular
+    gnome-calculator
+    file-roller # archive manager, replaces Ark
+    loupe # image viewer, replaces Gwenview
+    gparted # replaces KDE Partition Manager
+    ffmpegthumbnailer # video thumbnails in Nautilus, replaces ffmpegthumbs
 
     # Internet / communication
     vivaldi
