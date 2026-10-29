@@ -1,13 +1,18 @@
 # Waybar status bar.
 #
 # Settings/module choices are ours; the visual style (pill-shaped modules
-# floating over a transparent bar) is adapted from Andrey0189's niri/
-# Hyprland dotfiles:
+# on a transparent bar) is adapted from Andrey0189's niri/Hyprland dotfiles:
 # https://raw.githubusercontent.com/Andrey0189/nixos-config/refs/heads/main/home-manager/modules/wms/waybar.nix
 # - module names swapped from hyprland/* to niri/* for this compositor, the
 # battery/backlight/temperature modules dropped (desktop, no battery or
-# managed backlight), and every solid pill background given 80% opacity
-# (alpha 0.8) per request instead of the source's fully opaque fills.
+# managed backlight), every solid pill background given 80% opacity (alpha
+# 0.8) per request instead of the source's fully opaque fills, and the
+# source's floating top/bottom margin dropped: with a margin, the bar's
+# layer-shell exclusive zone no longer lines up with where the pills are
+# actually drawn, so niri's maximize-to-edges let windows fill that gap and
+# visually poke through/around the bar. Anchored flush (no margin) keeps
+# the exclusive zone and the visible bar the same rectangle, which is what
+# keeps maximized windows from overlapping it.
 { pkgs, ... }:
 
 {
@@ -122,7 +127,6 @@
       mainBar = {
         layer = "top";
         position = "top";
-        margin = "9 13 -10 18";
 
         modules-left = [ "niri/workspaces" "niri/language" "niri/window" ];
         modules-center = [ "clock" "custom/weather" ];
@@ -190,8 +194,10 @@
           format = "";
           tooltip = false;
           # Opens a menu (lock/sleep/logout/restart/shutdown) instead of
-          # immediately powering off - see home/modules/wlogout.nix.
-          on-click = "${pkgs.wlogout}/bin/wlogout";
+          # immediately powering off - see home/modules/wlogout.nix. -b 3
+          # forces 3 buttons per row (wlogout's own auto column count for
+          # 5 buttons left a visibly empty 6th slot).
+          on-click = "${pkgs.wlogout}/bin/wlogout -b 3";
         };
       };
     };

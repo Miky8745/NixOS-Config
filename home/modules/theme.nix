@@ -20,6 +20,14 @@
       name = "Adwaita-dark";
       package = pkgs.gnome-themes-extra;
     };
+    # Explicit rather than relying on GTK's built-in fallback - wlogout
+    # (home/modules/wlogout.nix) looks up its button icons by name via
+    # `-gtk-icontheme()`, which needs gtk-icon-theme-name actually set to
+    # resolve "system-shutdown-symbolic" and friends.
+    iconTheme = {
+      name = "Adwaita";
+      package = pkgs.adwaita-icon-theme;
+    };
     gtk3.extraConfig = {
       gtk-application-prefer-dark-theme = 1;
     };

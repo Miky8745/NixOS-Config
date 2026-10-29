@@ -173,6 +173,15 @@ in
         XF86MonBrightnessUp   allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "+10%"; }
         XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "10%-"; }
 
+        // The hardware power button used to shut the machine down the
+        // instant it was pressed - that's systemd-logind's own default
+        // HandlePowerKey=poweroff, which intercepts the key at the logind
+        // level before niri ever sees it. hosts/MikyNB/configuration.nix
+        // sets services.logind.powerKey = "ignore" so the keypress reaches
+        // niri instead, landing here to open the same power menu as
+        // waybar's power button (home/modules/waybar.nix).
+        XF86PowerOff { spawn "${pkgs.wlogout}/bin/wlogout" "-b" "3"; }
+
 
         Mod+O repeat=false { toggle-overview; }
 

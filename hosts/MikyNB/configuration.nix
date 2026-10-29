@@ -158,6 +158,13 @@
   };
   systemd.services.greetd.environment.WLR_NO_HARDWARE_CURSORS = "1";
 
+  # systemd-logind's own default (HandlePowerKey=poweroff) intercepts the
+  # hardware power button before niri ever sees the keypress, shutting the
+  # machine down immediately regardless of any niri bind. Tell logind to
+  # leave the key alone so it reaches niri's XF86PowerOff bind instead
+  # (home/modules/niri.nix), which opens the wlogout power menu.
+  services.logind.settings.Login.HandlePowerKey = "ignore";
+
   programs.kdeconnect.enable = true; # also opens its firewall ports
 
   # Lock screen (in-session only, not the greeter above): qylock
