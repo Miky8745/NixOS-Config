@@ -78,16 +78,13 @@
   console.keyMap = "us";
   services.xserver.xkb.layout = "us";
 
-  # No cursor theme exists anywhere by default, so the pointer is invisible
-  # on the SDDM greeter / qylock lock screen (these run before the user's
-  # home-manager session - and its env vars - exist). Home Manager's
-  # home.pointerCursor (see theme.nix) covers the post-login session.
-  #
-  # environment.variables only reaches interactive login shells (via
-  # /etc/profile and PAM) - display-manager.service starts well before any
-  # of that, so this alone never reached the greeter. It's set anyway for
-  # anything that *does* go through a login shell; the actual greeter fix
-  # is systemd.services.display-manager.environment below.
+  # No cursor theme exists anywhere by default, so the pointer would be
+  # invisible on the qylock lock screen (which runs before the user's
+  # home-manager session - and its env vars - exist) without this. Home
+  # Manager's home.pointerCursor (see theme.nix) covers the post-login
+  # session; the greeter (regreet, see below) sets its own cursor theme
+  # directly since environment.variables only reaches interactive login
+  # shells, not display-manager-style services.
   environment.variables = {
     XCURSOR_THEME = "Adwaita";
     XCURSOR_SIZE = "24";
@@ -119,69 +116,60 @@
   services.gvfs.enable = true; # trash/network places for the GTK file-chooser portal
   services.udisks2.enable = true; # removable-drive mounting (also used by Dolphin)
 
-  # SDDM greeter, running on Wayland (no Xorg needed just for login).
+  # Greeter: regreet (GTK, via greetd+cage), running on Wayland.
   #
-  # sddm.conf's [Theme] CursorTheme/CursorSize look like the obvious place
-  # to fix the greeter's invisible cursor, but SDDM only applies those
-  # through its X11 setup path (xsetroot-style, "Setting default cursor" in
-  # its own log output) - that code never runs in Wayland mode, so the
-  # setting is silently a no-op here. XCURSOR_THEME has to reach the
-  # greeter/Weston process's actual environment instead, which systemd
-  # units don't get from environment.variables (PAM/login-shell only) -
-  # `systemctl show-environment` confirms display-manager.service's
-  # environment has no XCURSOR_* at all without this.
+  # Previously this was SDDM's own Wayland greeter (weston --shell=kiosk,
+  # forced to --renderer=pixman to dodge this Maxwell Nvidia GPU's
+  # direct-scanout corruption, same workaround as niri's "debug
+  # { disable-direct-scanout }" below). That combination left the greeter's
+  # pointer completely dead - no visible cursor, no clicks, nothing, as if
+  # no pointer device existed. A live weston input-device dump ruled out the
+  # obvious theories: both the touchpad and the external USB mouse were
+  # correctly picked up and associated with the output, and a direct
+  # `drmGetCap(DRM_CAP_CURSOR_WIDTH/HEIGHT)` query showed this GPU's hardware
+  # cursor plane supports up to 256x256 - well above the 72px cursor theme
+  # size tried, ruling out a plane-size overflow too. weston's kiosk-shell
+  # has no fallback path if hardware-cursor-plane compositing breaks, and
+  # unlike wlroots-based compositors has no documented env-var workaround for
+  # exactly this failure mode.
   #
-  # Naming the theme is not enough on its own: libwayland-cursor's built-in
-  # search path (no XCURSOR_PATH set) is
-  # "/icons:~/.icons:/usr/share/icons:/usr/share/pixmaps:...", none of
-  # which exist on NixOS. The Adwaita cursor theme (from
-  # environment.systemPackages' adwaita-icon-theme) only exists under
-  # /run/current-system/sw/share/icons, so that has to be added explicitly
-  # or XCURSOR_THEME names a theme that still can't be found.
-  systemd.services.display-manager.environment = {
-    XCURSOR_THEME = "Adwaita";
-    XCURSOR_SIZE = "24";
-    XCURSOR_PATH = "/run/current-system/sw/share/icons";
-  };
-  services.displayManager.sddm = {
+  # cage (used here via programs.regreet.enable) is wlroots-based instead -
+  # a far more common pairing for Wayland greeters, and wlroots has a long-
+  # documented Nvidia hardware-cursor-plane bug with a known, safe fix
+  # (WLR_NO_HARDWARE_CURSORS below forces software cursor compositing).
+  programs.regreet = {
     enable = true;
-    wayland.enable = true;
-    # The greeter's own compositor (Weston) has no equivalent of niri's
-    # "debug { disable-direct-scanout }" (see niri.nix) - on this Maxwell
-    # Nvidia GPU, Weston's default DRM-plane direct scan-out is what
-    # produces the severe pre-login flicker/corruption. Forcing the pixman
-    # (CPU) renderer makes Weston composite everything instead of handing
-    # buffers straight to a hardware plane, which is the same workaround
-    # niri already applies for the actual desktop session.
-    wayland.compositorCommand = lib.mkForce (
-      let
-        westonIni = (pkgs.formats.ini { }).generate "weston.ini" {
-          libinput = {
-            enable-tap = config.services.libinput.mouse.tapping;
-            left-handed = config.services.libinput.mouse.leftHanded;
-          };
-          keyboard = {
-            keymap_model = config.services.xserver.xkb.model;
-            keymap_layout = config.services.xserver.xkb.layout;
-            keymap_variant = config.services.xserver.xkb.variant;
-            keymap_options = config.services.xserver.xkb.options;
-          };
-        };
-      in
-      "${lib.getExe pkgs.weston} --shell=kiosk --renderer=pixman -c ${westonIni}"
-    );
+    cursorTheme = {
+      name = "Adwaita";
+      package = pkgs.adwaita-icon-theme;
+    };
+    theme = {
+      name = "Adwaita-dark";
+      package = pkgs.gnome-themes-extra;
+    };
+    settings.background = {
+      # Same image niri's swaybg uses as the desktop wallpaper (see
+      # niri.nix) - copied into the repo (hosts/MikyNB/background.jpg) so
+      # it's a store path, since the greeter's "greeter" system user can't
+      # read into ~/Background (home is 0700, owned by miky8745).
+      path = toString ./background.jpg;
+      fit = "Cover"; # GTK4 ContentFit equivalent of swaybg's "-m fill"
+    };
   };
+  systemd.services.greetd.environment.WLR_NO_HARDWARE_CURSORS = "1";
 
   programs.kdeconnect.enable = true; # also opens its firewall ports
 
-  # Lock screen + SDDM greeter: qylock (github:Darkkal44/qylock), "enfield"
-  # theme. Its Quickshell lock authenticates through PAM's default "login"
-  # service (not a dedicated one), and runs third-party QML - a deliberate
-  # trust tradeoff over the previous hand-rolled pam_unix-only setup, made
-  # knowingly rather than by default.
+  # Lock screen (in-session only, not the greeter above): qylock
+  # (github:Darkkal44/qylock), "enfield" theme. Its Quickshell lock
+  # authenticates through PAM's default "login" service (not a dedicated
+  # one), and runs third-party QML - a deliberate trust tradeoff over the
+  # previous hand-rolled pam_unix-only setup, made knowingly rather than by
+  # default.
   programs.qylock = {
     enable = true;
     theme = "enfield";
+    sddm.enable = false; # no SDDM anymore - see the greeter comment above
   };
 
   # ---------- Audio / Bluetooth ----------
@@ -278,7 +266,7 @@
   # ---------- Packages ----------
   environment.systemPackages = with pkgs; [
     # Cursor theme for everything that runs before home-manager's session
-    # env vars exist (SDDM greeter, qylock lock screen) - see
+    # env vars exist (regreet greeter, qylock lock screen) - see
     # environment.variables.XCURSOR_THEME above.
     adwaita-icon-theme
 
