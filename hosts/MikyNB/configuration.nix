@@ -17,6 +17,21 @@
   boot.kernelPackages = pkgs.linuxPackages; # NixOS default = LTS kernel
   boot.supportedFilesystems = [ "ntfs" ];
 
+  # This laptop's ACPI power button was being claimed by the kernel's
+  # "tiny_power_button" driver instead of the generic "button" driver (both
+  # are loaded by default; confirmed via `lsmod` + /proc/bus/input/devices
+  # showing no "Power Button" input device, only "Lid Switch"/"Sleep
+  # Button" - the generic button driver registers one for every ACPI
+  # button it owns, and the power one was missing). tiny_power_button is
+  # meant for VMs: per its kernel doc, it "directly signals the init
+  # process to shut down" the instant the ACPI event fires, entirely
+  # bypassing systemd-logind, acpid, and niri - so no HandlePowerKey
+  # setting or compositor keybind could ever intercept it. Blacklisting it
+  # lets the generic button driver bind instead, which exposes a normal
+  # evdev "Power Button" device for logind/niri to handle like any other
+  # key. Requires a reboot (the module is already bound this session).
+  boot.blacklistedKernelModules = [ "tiny_power_button" ];
+
   # ---------- NVIDIA Quadro M2000M (Maxwell) ----------
   # Drivers 590+ dropped Maxwell, so pin the 580 legacy branch (supported until 2028).
   # Maxwell is not supported by the open kernel modules.

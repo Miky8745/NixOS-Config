@@ -2,21 +2,25 @@
 # key (home/modules/waybar.nix, home/modules/niri.nix's XF86PowerOff bind),
 # so both open this instead of shutting the machine down directly.
 #
-# Layout/look adapted from mylinuxforwork/dotfiles' wlogout config
+# Layout adapted from mylinuxforwork/dotfiles' wlogout config
 # (https://github.com/mylinuxforwork/dotfiles/tree/main/dotfiles/.config/wlogout):
-# same five actions (lock/suspend/logout/reboot/shutdown, no hibernate) and
-# the same rounded-button-that-grows-on-hover feel, re-themed to match the
-# pill palette waybar.nix uses instead of ML4W's own colors.
+# same five actions (lock/suspend/logout/reboot/shutdown, no hibernate).
 #
-# Icons are looked up by name from the Adwaita icon theme via
-# `-gtk-icontheme()` (home/modules/theme.nix sets gtk.iconTheme so the name
-# actually resolves) rather than drawn as Nerd Font glyph text: GTK wasn't
-# rendering those PUA codepoints as button labels even though the font file
-# has them, so -gtk-icontheme is both the documented wlogout approach and
-# sidesteps that font-rendering question entirely. The module is invoked
-# with `-b 3` (buttons-per-row) wherever it's launched, since wlogout's own
-# automatic column count for 5 buttons was leaving a visibly empty 6th
-# slot; 3+2 has no such gap.
+# Icons use wlogout's own bundled PNGs (${pkgs.wlogout}/share/wlogout/icons/)
+# via the exact `background-image: image(url(...))` pattern from wlogout's
+# own default /etc/wlogout/style.css - that's the package's own
+# known-working approach, rather than a Nerd Font glyph or -gtk-icontheme
+# lookup (both tried previously; the glyph text never rendered, and a
+# stray `background-position: center top 28px` - an invalid value, GTK CSS
+# doesn't support the 2-axis-plus-offset syntax - was logged by wlogout
+# itself as "Junk at end of value", on top of a `button label { margin-top
+# }` override that was fighting wlogout's *own* built-in text placement:
+# per `man 5 wlogout`, each layout entry's height/width (default 0.9/0.5)
+# already position the text, so this file doesn't need to touch it at all).
+#
+# The module is invoked with `-b 3` (buttons-per-row) wherever it's
+# launched, since wlogout's own automatic column count for 5 buttons was
+# leaving a visibly empty 6th slot; 3+2 has no such gap.
 { pkgs, ... }:
 
 let
@@ -27,6 +31,8 @@ let
   # (-x), not command line.
   lockCmd = "${pkgs.procps}/bin/pgrep -x quickshell"
     + " || QT_QPA_PLATFORM=wayland qylock-lock";
+
+  icon = name: "${pkgs.wlogout}/share/wlogout/icons/${name}.png";
 in
 {
   programs.wlogout = {
@@ -44,8 +50,9 @@ in
       * {
         font-family: "JetBrainsMono Nerd Font Mono";
         font-weight: bold;
-        transition: 20ms;
+        background-image: none;
         box-shadow: none;
+        transition: 20ms;
       }
 
       window {
@@ -58,8 +65,8 @@ in
         color: #ffffff;
         background-color: rgba(56, 60, 74, 0.8);
         background-repeat: no-repeat;
-        background-position: center top 28px;
-        background-size: 48px 48px;
+        background-position: center;
+        background-size: 25%;
         margin: 10px;
         min-width: 150px;
         min-height: 150px;
@@ -73,29 +80,24 @@ in
         box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
       }
 
-      /* Label text sits under the icon rather than overlapping it. */
-      button label {
-        margin-top: 86px;
-      }
-
       #lock {
-        background-image: -gtk-icontheme("system-lock-screen-symbolic");
+        background-image: image(url("${icon "lock"}"));
       }
 
       #suspend {
-        background-image: -gtk-icontheme("weather-clear-night-symbolic");
+        background-image: image(url("${icon "suspend"}"));
       }
 
       #logout {
-        background-image: -gtk-icontheme("system-log-out-symbolic");
+        background-image: image(url("${icon "logout"}"));
       }
 
       #reboot {
-        background-image: -gtk-icontheme("system-reboot-symbolic");
+        background-image: image(url("${icon "reboot"}"));
       }
 
       #shutdown {
-        background-image: -gtk-icontheme("system-shutdown-symbolic");
+        background-image: image(url("${icon "shutdown"}"));
       }
     '';
   };
