@@ -12,8 +12,11 @@ let
   # for the detailed story and why QT_QPA_PLATFORM is forced here
   # (environment.nix's xcb override otherwise breaks Quickshell's
   # session-lock protocol support).
+  # qylock-lock by absolute path - see niri.nix's copy of this lockCmd for
+  # why (not a PATH-reliant call: isn't a nix package exposed via `pkgs`,
+  # and gets reused from PATH-less contexts elsewhere too).
   lockCmd = "${pkgs.procps}/bin/pgrep -x quickshell"
-    + " || QT_QPA_PLATFORM=wayland qylock-lock";
+    + " || QT_QPA_PLATFORM=wayland /run/current-system/sw/bin/qylock-lock";
 in
 {
   services.swayidle = {
@@ -24,6 +27,13 @@ in
     ];
     events = {
       before-sleep = lockCmd;
+      # Without this, resuming from suspend can leave the outputs in
+      # whatever DPMS state they were last in instead of actually waking
+      # up, so the (correctly locked) screen just stays dark/unresponsive.
+      # Force the monitors back on and re-assert the lock (idempotent via
+      # the pgrep guard, in case the lock surface itself didn't survive
+      # the suspend/resume cycle) every time the system wakes up.
+      after-resume = "${pkgs.niri}/bin/niri msg action power-on-monitors && " + lockCmd;
     };
   };
 }

@@ -5,7 +5,7 @@
 # Layout adapted from mylinuxforwork/dotfiles' wlogout config
 # (https://github.com/mylinuxforwork/dotfiles/tree/main/dotfiles/.config/wlogout):
 # same five actions (lock/suspend/logout/reboot/shutdown, no hibernate),
-# plus a sixth "close" button (action is a no-op - wlogout always closes
+# plus a sixth "cancel" button (action is a no-op - wlogout always closes
 # itself and runs the clicked button's action, in that order, so a no-op
 # action is all "just close the menu" needs) to fill the 2x3 grid's
 # otherwise-empty last slot. That slot being empty also wasn't just a
@@ -39,10 +39,41 @@ let
   # wlogout's layout actions are plain shell strings with no access to
   # niri.nix's `let`. See niri.nix for why pgrep must match by process name
   # (-x), not command line.
+  # qylock-lock by absolute path, not bare command name: this exact
+  # layout action is invoked from the power-button-menu systemd service
+  # (hosts/MikyNB/configuration.nix) via `runuser` from a root unit with
+  # no normal user-session PATH, where a bare "qylock-lock" failed
+  # outright with "command not found".
   lockCmd = "${pkgs.procps}/bin/pgrep -x quickshell"
-    + " || QT_QPA_PLATFORM=wayland qylock-lock";
+    + " || QT_QPA_PLATFORM=wayland /run/current-system/sw/bin/qylock-lock";
 
   icon = name: "${pkgs.wlogout}/share/wlogout/icons/${name}.png";
+
+  # wlogout ships no "cancel" icon (only lock/hibernate/logout/shutdown/
+  # suspend/reboot), and Adwaita's own window-close-symbolic.svg is a dark
+  # grey (#2e3436) glyph meant for light backgrounds - invisible against
+  # this button's dark fill. Same path geometry, recolored white to match
+  # the other buttons' icons/text.
+  #
+  # Rasterized to a PNG at build time (rather than referencing an SVG
+  # directly) because wlogout's own binary isn't nix-wrapped with
+  # GDK_PIXBUF_MODULE_FILE, so gdk-pixbuf's SVG loader (librsvg) never
+  # gets found at runtime - confirmed by testing: the PNG icons above
+  # render fine, but pointing a button's background-image at a plain SVG
+  # file (regardless of its CSS label/id - "close", "cancel", and a
+  # generic "b5" id all showed the same failure) makes that single button
+  # render as a collapsed red rectangle with unstyled text, which is GTK's
+  # fallback when an image fails to load. A build-time PNG sidesteps the
+  # runtime SVG loader question entirely, same as every other icon here.
+  cancelIconSvg = pkgs.writeText "wlogout-cancel.svg" ''
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+      <path d="m 4 4 h 1 h 0.03125 c 0.253906 0.011719 0.511719 0.128906 0.6875 0.3125 l 2.28125 2.28125 l 2.3125 -2.28125 c 0.265625 -0.230469 0.445312 -0.304688 0.6875 -0.3125 h 1 v 1 c 0 0.285156 -0.035156 0.550781 -0.25 0.75 l -2.28125 2.28125 l 2.25 2.25 c 0.1875 0.1875 0.28125 0.453125 0.28125 0.71875 v 1 h -1 c -0.265625 0 -0.53125 -0.09375 -0.71875 -0.28125 l -2.28125 -2.28125 l -2.28125 2.28125 c -0.1875 0.1875 -0.453125 0.28125 -0.71875 0.28125 h -1 v -1 c 0 -0.265625 0.09375 -0.53125 0.28125 -0.71875 l 2.28125 -2.25 l -2.28125 -2.28125 c -0.210938 -0.195312 -0.304688 -0.46875 -0.28125 -0.75 z m 0 0" fill="#ffffff"/>
+    </svg>
+  '';
+
+  cancelIcon = pkgs.runCommand "wlogout-cancel.png" { nativeBuildInputs = [ pkgs.librsvg ]; } ''
+    rsvg-convert -w 128 -h 128 ${cancelIconSvg} -o $out
+  '';
 in
 {
   programs.wlogout = {
@@ -54,7 +85,7 @@ in
       { label = "logout"; action = "${pkgs.niri}/bin/niri msg action quit -s"; text = "Log Out"; keybind = "e"; }
       { label = "reboot"; action = "${pkgs.systemd}/bin/systemctl reboot"; text = "Restart"; keybind = "r"; }
       { label = "shutdown"; action = "${pkgs.systemd}/bin/systemctl poweroff"; text = "Shut Down"; keybind = "s"; }
-      { label = "close"; action = "${pkgs.coreutils}/bin/true"; text = "Cancel"; keybind = "c"; }
+      { label = "cancel"; action = "${pkgs.coreutils}/bin/true"; text = "Cancel"; keybind = "c"; }
     ];
 
     style = ''
@@ -111,14 +142,14 @@ in
         background-image: image(url("${icon "shutdown"}"));
       }
 
-      /* No bundled icon for this one - just text, and a muted background
-         so it visually reads as the safe/non-destructive option. */
-      #close {
+      /* Muted background so this one visually reads as the safe,
+         non-destructive option rather than a system action. */
+      #cancel {
         background-color: rgba(40, 42, 50, 0.8);
-        font-size: 14pt;
+        background-image: image(url("${cancelIcon}"));
       }
 
-      #close:focus, #close:hover {
+      #cancel:focus, #cancel:hover {
         background-color: rgba(60, 63, 74, 0.95);
       }
     '';

@@ -26,8 +26,17 @@ let
   # start session lock: The current compositor does not support the
   # ext-session-lock-v1 protocol"), which is why the old lock bind silently
   # failed.
+  #
+  # qylock-lock itself is referenced by absolute path (not relying on
+  # PATH): it's not a nix package output exposed via `pkgs` (it's a local
+  # `let` binding inside flake.nix, only reachable via
+  # environment.systemPackages), and more importantly this same lockCmd
+  # is reused from contexts with no normal user-session PATH at all - see
+  # hosts/MikyNB/configuration.nix's power-button-menu service, invoked
+  # via `runuser` from a root systemd unit, where a bare "qylock-lock"
+  # command failed outright with "command not found".
   lockCmd = "${pkgs.procps}/bin/pgrep -x quickshell"
-    + " || QT_QPA_PLATFORM=wayland qylock-lock";
+    + " || QT_QPA_PLATFORM=wayland /run/current-system/sw/bin/qylock-lock";
 in
 {
   xdg.configFile."niri/config.kdl".text = ''
@@ -173,14 +182,14 @@ in
         XF86MonBrightnessUp   allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "+10%"; }
         XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "10%-"; }
 
-        // The hardware power button used to shut the machine down the
-        // instant it was pressed - that's systemd-logind's own default
-        // HandlePowerKey=poweroff, which intercepts the key at the logind
-        // level before niri ever sees it. hosts/MikyNB/configuration.nix
-        // sets services.logind.powerKey = "ignore" so the keypress reaches
-        // niri instead, landing here to open the same power menu as
-        // waybar's power button (home/modules/waybar.nix).
-        XF86PowerOff { spawn "${pkgs.wlogout}/bin/wlogout" "-b" "3"; }
+        // The hardware power button never reaches niri at all - it has no
+        // real ACPI device behind it, only a "fixed hardware" event that
+        // the kernel's tiny_power_button driver turns into a raw signal
+        // straight to systemd (PID 1), bypassing libinput/niri entirely.
+        // See hosts/MikyNB/configuration.nix's boot.extraModprobeConfig
+        // comment for the actual wiring (short press -> suspend via a
+        // systemd target hook; a real long hold is a hardware/EC-level
+        // forced power-off below the OS, nothing to bind here either way).
 
 
         Mod+O repeat=false { toggle-overview; }
