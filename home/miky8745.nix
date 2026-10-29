@@ -8,6 +8,7 @@
     ./modules/zsh.nix
     ./modules/niri.nix
     ./modules/waybar.nix
+    ./modules/wlogout.nix
     ./modules/fuzzel.nix
     ./modules/mako.nix
     ./modules/swayidle.nix
