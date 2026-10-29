@@ -4,7 +4,17 @@
 #
 # Layout adapted from mylinuxforwork/dotfiles' wlogout config
 # (https://github.com/mylinuxforwork/dotfiles/tree/main/dotfiles/.config/wlogout):
-# same five actions (lock/suspend/logout/reboot/shutdown, no hibernate).
+# same five actions (lock/suspend/logout/reboot/shutdown, no hibernate),
+# plus a sixth "close" button (action is a no-op - wlogout always closes
+# itself and runs the clicked button's action, in that order, so a no-op
+# action is all "just close the menu" needs) to fill the 2x3 grid's
+# otherwise-empty last slot. That slot being empty also wasn't just a
+# cosmetic gap: wlogout has a bug where an incomplete last grid row causes
+# one GTK_IS_LABEL assertion failure per missing slot (verified directly -
+# 5 buttons at 3-per-row logs one, 4 at 2-per-row or 6 at 3-per-row logs
+# none) since it iterates the full rectangular grid including slots with
+# no real button. Harmless (GTK assertions don't crash wlogout, they just
+# skip that call), but six buttons sidesteps it entirely too.
 #
 # Icons use wlogout's own bundled PNGs (${pkgs.wlogout}/share/wlogout/icons/)
 # via the exact `background-image: image(url(...))` pattern from wlogout's
@@ -19,8 +29,8 @@
 # already position the text, so this file doesn't need to touch it at all).
 #
 # The module is invoked with `-b 3` (buttons-per-row) wherever it's
-# launched, since wlogout's own automatic column count for 5 buttons was
-# leaving a visibly empty 6th slot; 3+2 has no such gap.
+# launched, so these six lay out as two clean rows of three rather than
+# whatever wlogout's own automatic column count would have picked.
 { pkgs, ... }:
 
 let
@@ -44,6 +54,7 @@ in
       { label = "logout"; action = "${pkgs.niri}/bin/niri msg action quit -s"; text = "Log Out"; keybind = "e"; }
       { label = "reboot"; action = "${pkgs.systemd}/bin/systemctl reboot"; text = "Restart"; keybind = "r"; }
       { label = "shutdown"; action = "${pkgs.systemd}/bin/systemctl poweroff"; text = "Shut Down"; keybind = "s"; }
+      { label = "close"; action = "${pkgs.coreutils}/bin/true"; text = "Cancel"; keybind = "c"; }
     ];
 
     style = ''
@@ -98,6 +109,17 @@ in
 
       #shutdown {
         background-image: image(url("${icon "shutdown"}"));
+      }
+
+      /* No bundled icon for this one - just text, and a muted background
+         so it visually reads as the safe/non-destructive option. */
+      #close {
+        background-color: rgba(40, 42, 50, 0.8);
+        font-size: 14pt;
+      }
+
+      #close:focus, #close:hover {
+        background-color: rgba(60, 63, 74, 0.95);
       }
     '';
   };

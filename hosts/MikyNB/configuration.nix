@@ -174,11 +174,37 @@
   systemd.services.greetd.environment.WLR_NO_HARDWARE_CURSORS = "1";
 
   # systemd-logind's own default (HandlePowerKey=poweroff) intercepts the
-  # hardware power button before niri ever sees the keypress, shutting the
-  # machine down immediately regardless of any niri bind. Tell logind to
-  # leave the key alone so it reaches niri's XF86PowerOff bind instead
-  # (home/modules/niri.nix), which opens the wlogout power menu.
+  # hardware power button before anything else sees the keypress, shutting
+  # the machine down immediately. Tell logind to leave the key alone.
   services.logind.settings.Login.HandlePowerKey = "ignore";
+
+  # With tiny_power_button blacklisted above, the generic "button" ACPI
+  # driver is now the only thing handling this laptop's power key - but
+  # this hardware has no PNP0C0C "Power Button" ACPI device (confirmed:
+  # `button` only ever registers the Lid Switch and Sleep Button at boot),
+  # so the key is a *fixed-hardware* ACPI power event, not a normal evdev
+  # key niri's XF86PowerOff bind (home/modules/niri.nix) can reliably
+  # catch. acpid already runs in --netlink mode (via powerManagement.enable
+  # below) and already has a "button/power.*" rule wired to exactly this
+  # fixed event - it just ran an empty action. Point that action at wlogout
+  # instead, as the actually-reliable path for this hardware. acpid itself
+  # runs as root with no session, so runuser hands the command to the real
+  # session (hardcoding uid 1000/miky8745 is fine - this is a single-user
+  # laptop) and the wayland-* socket is discovered rather than assumed to
+  # be wayland-1, since that numbering isn't guaranteed to be stable.
+  services.acpid = {
+    enable = true;
+    powerEventCommands = ''
+      runtime_dir=/run/user/1000
+      wayland_sock=$(${pkgs.coreutils}/bin/ls "$runtime_dir"/wayland-* 2>/dev/null | ${pkgs.coreutils}/bin/head -n1)
+      if [ -n "$wayland_sock" ]; then
+        ${pkgs.util-linux}/bin/runuser -u miky8745 -- \
+          ${pkgs.coreutils}/bin/env XDG_RUNTIME_DIR="$runtime_dir" \
+            WAYLAND_DISPLAY="$(${pkgs.coreutils}/bin/basename "$wayland_sock")" \
+            ${pkgs.wlogout}/bin/wlogout -b 3
+      fi
+    '';
+  };
 
   programs.kdeconnect.enable = true; # also opens its firewall ports
 
