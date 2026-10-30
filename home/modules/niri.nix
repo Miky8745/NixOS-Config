@@ -88,8 +88,8 @@ in
         }
     }
 
-    // waybar, mako and swayidle are started as Home Manager systemd user
-    // services (see programs.waybar / services.mako / services.swayidle),
+    // waybar, swaync and swayidle are started as Home Manager systemd user
+    // services (see programs.waybar / services.swaync / services.swayidle),
     // not spawned here.
     spawn-at-startup "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1"
     // Pinned directly to the one image in ~/Background - simplest option,

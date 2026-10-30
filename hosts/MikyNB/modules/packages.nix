@@ -11,7 +11,6 @@
     # niri desktop (bar, launcher, notifications, lock, wallpaper, polkit, XWayland compat)
     waybar
     fuzzel
-    mako
     swaybg
     swaylock # kept as an emergency fallback; the active lock bind is qylock (programs.qylock above)
     quickshell

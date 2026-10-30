@@ -130,7 +130,7 @@
 
         modules-left = [ "niri/workspaces" "niri/language" "niri/window" ];
         modules-center = [ "clock" "custom/weather" ];
-        modules-right = [ "network" "pulseaudio" "memory" "cpu" "tray" "custom/power" ];
+        modules-right = [ "network" "custom/notification" "pulseaudio" "memory" "cpu" "tray" "custom/power" ];
 
         "niri/workspaces" = {
           format = "{index}";
@@ -163,6 +163,30 @@
 
         tray = {
           spacing = 8;
+        };
+
+        # Click opens/toggles the swaync history panel; right-click toggles
+        # DND. swaync-client -swb emits waybar-ready JSON reflecting DND
+        # state (see home/modules/swaync.nix for the daemon itself).
+        "custom/notification" = {
+          tooltip = false;
+          format = "{icon}";
+          format-icons = {
+            notification = "";
+            none = "";
+            "dnd-notification" = "";
+            "dnd-none" = "";
+            "inhibited-notification" = "";
+            "inhibited-none" = "";
+            "dnd-inhibited-notification" = "";
+            "dnd-inhibited-none" = "";
+          };
+          return-type = "json";
+          exec-if = "which swaync-client";
+          exec = "swaync-client -swb";
+          on-click = "swaync-client -t -sw";
+          on-click-right = "swaync-client -d -sw";
+          escape = true;
         };
 
         pulseaudio = {
@@ -286,6 +310,15 @@
       }
 
       #network {
+        margin-right: 8px;
+        padding: 0 16px;
+        border-radius: 10px;
+        transition: none;
+        color: #ffffff;
+        background: rgba(56, 60, 74, 0.8);
+      }
+
+      #custom-notification {
         margin-right: 8px;
         padding: 0 16px;
         border-radius: 10px;

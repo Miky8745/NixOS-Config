@@ -10,7 +10,7 @@
     ./modules/waybar.nix
     ./modules/wlogout.nix
     ./modules/fuzzel.nix
-    ./modules/mako.nix
+    ./modules/swaync.nix
     ./modules/swayidle.nix
     ./modules/alacritty.nix
     ./modules/theme.nix
