@@ -166,11 +166,14 @@
         };
 
         pulseaudio = {
-          format = "{volume}% {icon}";
-          format-muted = "muted";
+          format = "{format_source} {icon} {volume}%";
+          format-muted = "{format_source}  {volume}%";
           format-icons = {
-            default = [ "" "" "" ];
+            default = [ "" "" "" ];
           };
+          # Mic (input source) status: shown whether it's muted or not.
+          format-source = "";
+          format-source-muted = "";
           on-click = "pavucontrol";
         };
 
