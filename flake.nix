@@ -46,6 +46,18 @@
         postPatch = (old.postPatch or "") + ''
           sed -i '/id: shim/a\    property var keyboard: QtObject { property bool numLock: false }' \
             quickshell-lockscreen/shim/SddmShim.qml
+
+          # "enfield"'s action row (bottom-right of the lock screen) only
+          # wires up Restart/Shut Down - the shim's sddm object had no
+          # suspend() at all. Add one next to reboot()/powerOff() (same
+          # systemd-first, loginctl-fallback shape) and surface it as a
+          # third action button.
+          sed -i '/function powerOff/a\    function suspend() { Quickshell.execDetached(["bash", "-c", "if [ -d /run/systemd/system ]; then systemctl suspend; else loginctl suspend; fi"]); }' \
+            quickshell-lockscreen/shim/SddmShim.qml
+
+          substituteInPlace themes/enfield/Main.qml \
+            --replace-fail $'                    { label: "Restart",   act: 0 },\n                    { label: "Shut Down", act: 1 }' $'                    { label: "Restart",   act: 0 },\n                    { label: "Suspend",   act: 2 },\n                    { label: "Shut Down", act: 1 }' \
+            --replace-fail $'                                if (d.act === 0) sddm.reboot()\n                                else             sddm.powerOff()' $'                                if (d.act === 0) sddm.reboot()\n                                else if (d.act === 2) sddm.suspend()\n                                else             sddm.powerOff()'
         '';
         postInstall = (old.postInstall or "") + ''
           wrapProgram $out/bin/qylock-lock \
