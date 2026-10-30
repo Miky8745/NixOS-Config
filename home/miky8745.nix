@@ -12,6 +12,7 @@
     ./modules/fuzzel.nix
     ./modules/swaync.nix
     ./modules/swayidle.nix
+    ./modules/swayosd.nix
     ./modules/alacritty.nix
     ./modules/theme.nix
     ./modules/environment.nix

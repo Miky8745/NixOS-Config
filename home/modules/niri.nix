@@ -37,6 +37,22 @@ let
   # command failed outright with "command not found".
   lockCmd = "${pkgs.procps}/bin/pgrep -x quickshell"
     + " || QT_QPA_PLATFORM=wayland /run/current-system/sw/bin/qylock-lock";
+
+  # Volume/mic/brightness binds below call this instead of wpctl/
+  # brightnessctl directly - it performs the same change but also pops up
+  # the on-screen display (home/modules/swayosd.nix runs the server side).
+  swayosdClient = "${pkgs.swayosd}/bin/swayosd-client";
+
+  # No swayosd OSD for keyboard-layout switches exists as a built-in flag
+  # (only volume/brightness/caps-lock/etc.), so this builds one from
+  # `--custom-message`: switch layout, then read back whichever layout
+  # `niri msg keyboard-layouts` now marks with "*" (its non-JSON output -
+  # avoids pulling in jq just to read one field out of --json) and show
+  # that as the message.
+  switchLayoutCmd = "${pkgs.niri}/bin/niri msg action switch-layout next; "
+    + "name=$(${pkgs.niri}/bin/niri msg keyboard-layouts | ${pkgs.gnugrep}/bin/grep '\\*' | "
+    + "${pkgs.gnused}/bin/sed -E 's/^[^0-9]*[0-9]+ //'); "
+    + "${swayosdClient} --custom-message \"$name\" --custom-icon input-keyboard";
 in
 {
   xdg.configFile."niri/config.kdl".text = ''
@@ -169,12 +185,19 @@ in
         Mod+T hotkey-overlay-title="Open a Terminal: alacritty" { spawn "alacritty"; }
         Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
         Mod+L hotkey-overlay-title="Lock the Screen: qylock" { spawn-sh "${lockCmd}"; }
-        Mod+Space hotkey-overlay-title="Switch Keyboard Layout" { switch-layout "next"; }
+        // Raw string (r#"..."#) because switchLayoutCmd itself needs real
+        // "quotes" around $name for the shell - a plain KDL "..." string
+        // would end at the first one of those instead of at the end of
+        // the command.
+        Mod+Space hotkey-overlay-title="Switch Keyboard Layout" { spawn-sh r#"${switchLayoutCmd}"#; }
 
-        XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.05+ -l 1.0"; }
-        XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.05-"; }
-        XF86AudioMute        allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"; }
-        XF86AudioMicMute     allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"; }
+        // swayosd-client both makes the change and pops up the OSD (see
+        // home/modules/swayosd.nix) - replaces the old direct wpctl/
+        // brightnessctl calls, which changed things silently.
+        XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "${swayosdClient} --output-volume +5 --max-volume 100"; }
+        XF86AudioLowerVolume allow-when-locked=true { spawn-sh "${swayosdClient} --output-volume -5"; }
+        XF86AudioMute        allow-when-locked=true { spawn-sh "${swayosdClient} --output-volume mute-toggle"; }
+        XF86AudioMicMute     allow-when-locked=true { spawn-sh "${swayosdClient} --input-volume mute-toggle"; }
 
         XF86AudioPlay  allow-when-locked=true { spawn-sh "playerctl play-pause"; }
         XF86AudioPause allow-when-locked=true { spawn-sh "playerctl play-pause"; }
@@ -182,8 +205,8 @@ in
         XF86AudioPrev  allow-when-locked=true { spawn-sh "playerctl previous"; }
         XF86AudioNext  allow-when-locked=true { spawn-sh "playerctl next"; }
 
-        XF86MonBrightnessUp   allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "+10%"; }
-        XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "10%-"; }
+        XF86MonBrightnessUp   allow-when-locked=true { spawn-sh "${swayosdClient} --brightness +10"; }
+        XF86MonBrightnessDown allow-when-locked=true { spawn-sh "${swayosdClient} --brightness -10"; }
 
         // The hardware power button never reaches niri at all - it has no
         // real ACPI device behind it, only a "fixed hardware" event that
