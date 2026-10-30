@@ -81,16 +81,12 @@ in
 
     layout = [
       { label = "lock"; action = lockCmd; text = "Lock"; keybind = "l"; }
-      # Was `systemctl suspend` ("Sleep") - real suspend-to-RAM hangs
-      # unrecoverably on this hardware (NVIDIA legacy-580 driver's DRM
-      # resume path hangs inside the kernel itself, before any userspace
-      # config gets a chance to run - confirmed across many fix attempts
-      # this evening, each needing a hard power-off to recover). Repointed
-      # to a real poweroff instead: reliably cuts power to the fans (no
-      # dependency on the broken resume path at all), at the cost of losing
-      # suspend's instant-resume convenience - boot speed is tuned below to
-      # make up for that as much as this hardware allows.
-      { label = "suspend"; action = "${pkgs.systemd}/bin/systemctl poweroff"; text = "Power Off"; keybind = "u"; }
+      # Was briefly repointed to poweroff while suspend appeared to hang
+      # unrecoverably - root cause turned out to be swayidle.nix's
+      # before-sleep hook racing the kernel suspend call with GPU work
+      # (see that file's comment), now fixed at the source. Real suspend
+      # restored.
+      { label = "suspend"; action = "${pkgs.systemd}/bin/systemctl suspend"; text = "Sleep"; keybind = "u"; }
       { label = "logout"; action = "${pkgs.niri}/bin/niri msg action quit -s"; text = "Log Out"; keybind = "e"; }
       { label = "reboot"; action = "${pkgs.systemd}/bin/systemctl reboot"; text = "Restart"; keybind = "r"; }
       { label = "shutdown"; action = "${pkgs.systemd}/bin/systemctl poweroff"; text = "Shut Down"; keybind = "s"; }

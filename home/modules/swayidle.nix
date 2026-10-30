@@ -19,16 +19,9 @@ let
   # unlock) - swayidle's unit uses `-w` (wait for command to finish), a
   # single-threaded wait, so any invocation that never returns wedges
   # swayidle's whole event loop, including its D-Bus listening, until
-  # unlock. Concretely this broke suspend: before-sleep held logind's
-  # delay-lock inhibitor open via exactly this never-returning command,
-  # Quickshell finished loading in ~1s but the command still hadn't
-  # returned 14s later when logind's InhibitDelayMaxSec gave up and forced
-  # suspend through anyway - mid-render, with no synchronization - which is
-  # what the kernel then hung on (repeated nvidia-drm "Flip event timeout",
-  # full hard-reset-required hang). Backgrounding the launch and waiting
-  # for the process to actually start (then a short settle) instead lets
-  # every call site here finish on its own terms, so logind/swayidle only
-  # ever proceed because this command voluntarily let go.
+  # unlock. Relevant to every call site below that still uses this
+  # (idle-timeout, after-resume) - before-sleep stopped using it entirely,
+  # see that event's own comment for why.
   #
   # qylock-lock by absolute path - see niri.nix's copy of this lockCmd for
   # why (not a PATH-reliant call: isn't a nix package exposed via `pkgs`,
@@ -53,7 +46,20 @@ in
       { timeout = 600; command = "${pkgs.niri}/bin/niri msg action power-off-monitors"; }
     ];
     events = {
-      before-sleep = lockCmd;
+      # Deliberately NOT lockCmd. Traced the real suspend-hang root cause
+      # to here: qylock's "enfield" theme decodes and plays an mp4
+      # background video via Qt Multimedia/ffmpeg on launch, and that GPU
+      # work was still in flight when the actual kernel suspend call froze
+      # the GPU mid-commit (confirmed against an older commit, from before
+      # a pgrep matching bug was fixed - back when this call was
+      # accidentally a no-op, suspend never hung at all). No amount of
+      # waiting fixes this; the only thing that can't race the kernel
+      # suspend call is doing no GPU work here at all. Blanking the
+      # outputs is instant (no decode, no scene load) and after-resume
+      # below already re-asserts the real lock as soon as the screen comes
+      # back on, so the screen is never left actually unlocked - just
+      # briefly not-yet-relocked while the display itself is still off.
+      before-sleep = "${pkgs.niri}/bin/niri msg action power-off-monitors";
       # Without this, resuming from suspend can leave the outputs in
       # whatever DPMS state they were last in instead of actually waking
       # up, so the (correctly locked) screen just stays dark/unresponsive.

@@ -17,12 +17,9 @@
   boot.kernelPackages = pkgs.linuxPackages; # NixOS default = LTS kernel
   boot.supportedFilesystems = [ "ntfs" ];
 
-  # Real suspend-to-RAM is unusable on this hardware (see
-  # home/modules/wlogout.nix's Sleep-button comment) - every "put the
-  # computer away" action is now a real poweroff, so the full cold-boot
-  # path is what stands in for resume speed now. Default is 5s; cut to 2 -
-  # short enough to not meaningfully add to boot time, long enough to
-  # still interrupt and pick Windows from the os-prober entry when needed.
+  # Default is 5s; cut to 2 - short enough to not meaningfully add to boot
+  # time, long enough to still interrupt and pick Windows from the
+  # os-prober entry when needed.
   boot.loader.timeout = 2;
 
   # This laptop's physical power button has no real ACPI control-method
@@ -189,34 +186,21 @@
     package = config.boot.kernelPackages.nvidiaPackages.legacy_580;
     open = false;
     modesetting.enable = true;
-    # Deliberately off. Enabling this sets NVreg_PreserveVideoMemoryAllocations
-    # and wires in nvidia-suspend/resume.service to save/restore VRAM across
-    # sleep - sounds like exactly what suspend needs, but it's what was
-    # actually hanging suspend on this hardware: nvidia-suspend.service's own
-    # explicit "save VRAM now" write to /proc/driver/nvidia/suspend runs
-    # *before* the kernel's standard per-device suspend hook, and that
-    # standard hook (which fires for every PCI device regardless, including
-    # this one) then tries its own GPU-blanking atomic commit against
-    # hardware that the first step already quiesced - with nothing left
-    # alive to signal the commit's page-flip as done, it hangs forever
-    # (repeated "[drm:nv_drm_atomic_commit] *ERROR* Flip event timeout on
-    # head 0", no further kernel messages, full hard-reset-required hang -
-    # confirmed in the journal, and confirmed to persist across multiple
-    # independent fixes to the *userspace* side of suspend, since this part
-    # of the hang is purely a kernel/driver-level conflict between the two
-    # suspend paths).
-    #
-    # With this off, only the kernel's standard path runs, and it completes
-    # cleanly on the suspend side - confirmed: a real "PM: suspend entry" ->
-    # "PM: suspend exit" cycle, several seconds apart, no hang. The *resume*
-    # side still hung separately though (same nv_drm_atomic_commit function,
-    # now failing to restore the display mode instead of blank it) - not
-    # something this option affects either way. See the systemd/system-sleep
-    # script below for how that's actually handled: this driver isn't even
-    # bound to the GPU during the real kernel sleep/wake anymore, so neither
-    # of this option's suspend *or* resume hooks have anything to do, making
-    # it moot - left off since there's nothing left for it to help with.
-    powerManagement.enable = false;
+    # suspend/hibernate (nvidia-suspend services, unmodified nixpkgs
+    # defaults). Suspend hung repeatedly tonight (repeated "[drm:
+    # nv_drm_atomic_commit] *ERROR* Flip event timeout on head 0", full
+    # hard-reset-required hang) - traced to home/modules/swayidle.nix's
+    # before-sleep hook launching qylock's video-background lock theme,
+    # GPU work that was still in flight when the kernel suspend call froze
+    # the GPU mid-commit (confirmed against an older commit where a since-
+    # fixed pgrep bug had been accidentally making that same call a no-op -
+    # suspend never hung there). before-sleep no longer does any GPU work
+    # at all, which was the actual fix - every custom nvidia-suspend/
+    # resume/hibernate.service override tried before that (replacing
+    # nvidia-sleep.sh, unbinding/rebinding the driver around sleep) turned
+    # out to be unnecessary complexity chasing the wrong layer. Back to
+    # plain nixpkgs defaults here.
+    powerManagement.enable = true;
     nvidiaSettings = true;
 
     moduleParams = {
@@ -241,73 +225,6 @@
       #   ''"PowerMizerEnable=0x1; PerfLevelSrc=0x2222; PowerMizerLevel=0x3; PowerMizerDefault=0x3; PowerMizerDefaultAC=0x3"'';
     };
   };
-
-  # Every previous suspend fix in this file fought the kernel's own
-  # resume-time GPU callback (nv_drm_atomic_commit hanging trying to
-  # restore the display mode that was active when the system went to
-  # sleep) and lost - that hang happens inside the kernel, before any
-  # userspace hook (this one included) even gets a chance to run.
-  #
-  # This sidesteps it entirely instead: fully unbind the NVIDIA driver
-  # before suspend and reload it fresh after resume, the same way it's
-  # already loaded on every normal, reliably-working boot. With the driver
-  # not bound to the device at all during the actual kernel suspend/resume
-  # walk, there's no .suspend()/.resume() callback for the GPU to hang in -
-  # the CPU/RAM go through genuine S3, and the GPU gets a cold re-init
-  # around that rather than being asked to "resume" a previous state.
-  # Trades a slower, more thorough suspend transition for the chance of a
-  # fast, working resume (no GPU state to restore means no VRAM-corruption
-  # risk either, so this replaces the earlier niri-restart-after-resume
-  # mitigation rather than needing both).
-  #
-  # Requires stopping niri first - modprobe -r fails outright while
-  # anything still holds /dev/dri or /dev/nvidia* open - and retries for
-  # up to 15s in case something takes a moment to actually release the
-  # device. If it never succeeds (something unexpected still holding the
-  # GPU), this logs that and lets suspend proceed anyway with the driver
-  # still loaded - the original kernel-resume-hang risk, same as before
-  # this hook existed, not worse.
-  environment.etc."systemd/system-sleep/50-nvidia-gpu-reinit".source = pkgs.writeShellScript "nvidia-gpu-reinit-on-sleep" ''
-    log() { ${pkgs.util-linux}/bin/logger -t nvidia-gpu-reinit "$1"; }
-    as_user() {
-      ${pkgs.util-linux}/bin/runuser -u miky8745 -- \
-        ${pkgs.coreutils}/bin/env XDG_RUNTIME_DIR=/run/user/1000 \
-          DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/1000/bus" \
-          ${pkgs.systemd}/bin/systemctl --user "$@"
-    }
-
-    case "$1" in
-      pre)
-        log "stopping niri so the nvidia modules can be unloaded cleanly"
-        as_user stop niri.service
-
-        i=0
-        ok=0
-        while [ "$i" -lt 15 ]; do
-          out=$(${pkgs.kmod}/bin/modprobe -r nvidia_uvm nvidia_drm nvidia_modeset nvidia 2>&1)
-          rc=$?
-          if [ "$rc" -eq 0 ]; then
-            ok=1
-            break
-          fi
-          log "modprobe -r attempt $i failed (rc=$rc): $out"
-          ${pkgs.coreutils}/bin/sleep 1
-          i=$((i + 1))
-        done
-        if [ "$ok" -eq 1 ]; then
-          log "nvidia modules unloaded cleanly after $i attempt(s)"
-        else
-          log "giving up unloading nvidia modules after $i attempts - suspend proceeding with the driver still loaded"
-        fi
-        ;;
-      post)
-        out=$(${pkgs.kmod}/bin/modprobe nvidia nvidia_modeset nvidia_drm nvidia_uvm 2>&1)
-        log "modprobe (reload) rc=$? output: $out"
-        as_user start niri.service
-        log "post-resume hook finished"
-        ;;
-    esac
-  '';
 
   # ---------- Networking ----------
   networking.hostName = "MikyNB";
@@ -428,32 +345,11 @@
   # a power keypress through logind.
   services.logind.settings.Login.HandlePowerKey = "ignore";
 
-  # Default is "suspend" - closing the lid would hit the exact same
-  # unrecoverable suspend hang as wlogout's old Sleep button (see
-  # home/modules/wlogout.nix), with no menu/confirmation step at all.
-  # Poweroff instead: reliably stops the fans, no dependency on the broken
-  # GPU-resume path. Set for both AC and battery since the hang isn't
-  # power-source-dependent.
-  services.logind.settings.Login.HandleLidSwitch = "poweroff";
-  services.logind.settings.Login.HandleLidSwitchExternalPower = "poweroff";
+  # Lid-close was briefly forced to "poweroff" while suspend appeared to
+  # hang unrecoverably - see wlogout.nix's Sleep-button comment, same root
+  # cause, now fixed. Back to systemd's own default ("suspend") rather
+  # than an explicit override.
 
-  # Default InhibitDelayMaxSec (5s) isn't enough time for the qylock lock
-  # screen's before-sleep invocation (see swayidle.nix) to actually finish:
-  # the "enfield" theme decodes and starts an mp4 background video via Qt
-  # Multimedia/ffmpeg on launch, and on this hardware that's still mid-load
-  # (confirmed in the journal: swayidle still parsing bg.mp4 frames) when
-  # logind's "Delay lock is active ... but inhibitor timeout is reached"
-  # fires and forces suspend through anyway. The kernel then freezes the
-  # GPU with Quickshell's lock-surface commit still in flight, which is
-  # what was hanging suspend as repeated nvidia-drm "Flip event timeout"
-  # errors with no further kernel messages - full hard-reset-required hang.
-  # This has been broken since the lock screen was switched from plain
-  # swaylock (fast, synchronous, no video) to this Quickshell theme - see
-  # git history around "Changed the lockscreen" - just not noticed at the
-  # time because the following commits were all chasing the lock screen's
-  # own visual bugs instead. Giving it real time to finish removes the race
-  # instead of fighting the GPU driver for it.
-  services.logind.settings.Login.InhibitDelayMaxSec = 15;
 
   programs.kdeconnect.enable = true; # also opens its firewall ports
 
