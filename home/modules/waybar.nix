@@ -167,6 +167,55 @@
     '';
   };
 
+  xdg.configFile."waybar/scripts/vpn.py" = {
+    executable = true;
+    text = ''
+      #!/usr/bin/env python3
+      # Drives custom/vpn: shows a lock glyph next to the network module
+      # whenever a WireGuard tunnel is up, nothing otherwise (waybar
+      # collapses a custom module whose "text" is empty, so this module
+      # just disappears when there's no VPN).
+      #
+      # Detection is a plain directory check against
+      # /sys/class/net/<iface>/wireguard, which every WireGuard interface
+      # exposes regardless of how it was brought up (wg-quick, a
+      # networking.wireguard.interfaces unit, or NetworkManager's native
+      # WireGuard support) - and unlike `wg show`, reading it needs no
+      # root/CAP_NET_ADMIN.
+      import glob
+      import json
+
+
+      def active_wg_ifaces():
+          ifaces = []
+          for path in glob.glob("/sys/class/net/*/wireguard"):
+              iface = path.split("/")[-2]
+              try:
+                  with open(f"/sys/class/net/{iface}/operstate") as f:
+                      state = f.read().strip()
+              except OSError:
+                  continue
+              if state == "up":
+                  ifaces.append(iface)
+          return ifaces
+
+
+      def main():
+          ifaces = active_wg_ifaces()
+          if ifaces:
+              print(json.dumps({
+                  "text": "\uf023",  # fa-lock
+                  "tooltip": "VPN active: " + ", ".join(ifaces),
+              }))
+          else:
+              print(json.dumps({"text": ""}))
+
+
+      if __name__ == "__main__":
+          main()
+    '';
+  };
+
   programs.waybar = {
     enable = true;
     systemd.enable = true; # starts/stops with the graphical session
@@ -178,7 +227,7 @@
 
         modules-left = [ "niri/workspaces" "niri/language" "niri/window" ];
         modules-center = [ "custom/clock" "custom/weather" ];
-        modules-right = [ "network" "custom/notification" "pulseaudio" "memory" "cpu" "tray" "custom/power" ];
+        modules-right = [ "custom/vpn" "network" "custom/notification" "pulseaudio" "memory" "cpu" "tray" "custom/power" ];
 
         "niri/workspaces" = {
           format = "{index}";
@@ -258,6 +307,17 @@
           format-wifi = "  {essid} ({signalStrength}%)";
           format-ethernet = "  eth";
           format-disconnected = "disconnected";
+        };
+
+        # Lock glyph shown immediately left of the network module whenever
+        # a WireGuard tunnel is active - see scripts/vpn.py above. Hidden
+        # entirely (no pill, no space) when there's no VPN.
+        "custom/vpn" = {
+          tooltip = true;
+          format = "{}";
+          return-type = "json";
+          interval = 5;
+          exec = "$HOME/.config/waybar/scripts/vpn.py";
         };
 
         memory = {
@@ -357,6 +417,15 @@
       #custom-weather {
         padding: 0 16px;
         border-radius: 0px 10px 10px 0px;
+        transition: none;
+        color: #ffffff;
+        background: rgba(56, 60, 74, 0.8);
+      }
+
+      #custom-vpn {
+        margin-right: 8px;
+        padding: 0 16px;
+        border-radius: 10px;
         transition: none;
         color: #ffffff;
         background: rgba(56, 60, 74, 0.8);

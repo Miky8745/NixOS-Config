@@ -20,5 +20,6 @@
     ./user.nix
     ./packages.nix
     ./nix.nix
+    ./device-notify.nix
   ];
 }

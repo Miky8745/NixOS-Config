@@ -17,6 +17,7 @@
     ./modules/theme.nix
     ./modules/environment.nix
     ./modules/mime.nix
+    ./modules/device-notify.nix
   ];
 
   home.username = "miky8745";

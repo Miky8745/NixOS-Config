@@ -43,6 +43,16 @@ let
   # the on-screen display (home/modules/swayosd.nix runs the server side).
   swayosdClient = "${pkgs.swayosd}/bin/swayosd-client";
 
+  # Plays a short "beep" right after a volume change so you can hear how
+  # loud the new level actually is, instead of just seeing the OSD bar
+  # move. The clip goes out through the same default sink swayosd-client
+  # just changed the volume of, so its loudness tracks the new setting.
+  # canberra-gtk-play -f sidesteps the XDG sound-theme lookup (by id)
+  # entirely - just plays the given file - so no package needs adding to
+  # XDG_DATA_DIRS for this to resolve it.
+  volumePreviewCmd = "${pkgs.libcanberra-gtk3}/bin/canberra-gtk-play -f "
+    + "${pkgs.sound-theme-freedesktop}/share/sounds/freedesktop/stereo/audio-volume-change.oga";
+
   # No swayosd OSD for keyboard-layout switches exists as a built-in flag
   # (only volume/brightness/caps-lock/etc.), so this builds one from
   # `--custom-message`: switch layout, then read back whichever layout
@@ -194,8 +204,8 @@ in
         // swayosd-client both makes the change and pops up the OSD (see
         // home/modules/swayosd.nix) - replaces the old direct wpctl/
         // brightnessctl calls, which changed things silently.
-        XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "${swayosdClient} --output-volume +5 --max-volume 100"; }
-        XF86AudioLowerVolume allow-when-locked=true { spawn-sh "${swayosdClient} --output-volume -5"; }
+        XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "${swayosdClient} --output-volume +5 --max-volume 100 && ${volumePreviewCmd}"; }
+        XF86AudioLowerVolume allow-when-locked=true { spawn-sh "${swayosdClient} --output-volume -5 && ${volumePreviewCmd}"; }
         XF86AudioMute        allow-when-locked=true { spawn-sh "${swayosdClient} --output-volume mute-toggle"; }
         XF86AudioMicMute     allow-when-locked=true { spawn-sh "${swayosdClient} --input-volume mute-toggle"; }
 
