@@ -15,6 +15,7 @@
     ./modules/alacritty.nix
     ./modules/theme.nix
     ./modules/environment.nix
+    ./modules/mime.nix
   ];
 
   home.username = "miky8745";
