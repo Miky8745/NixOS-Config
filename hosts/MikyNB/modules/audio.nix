@@ -10,4 +10,5 @@
     pulse.enable = true;
   };
   hardware.bluetooth.enable = true;
+  hardware.bluetooth.powerOnBoot = true; # adapter was staying off until something else turned it on
 }
