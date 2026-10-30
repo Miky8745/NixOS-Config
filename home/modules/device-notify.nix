@@ -10,7 +10,11 @@
 { pkgs, ... }:
 
 let
-  sounds = "${pkgs.sound-theme-freedesktop}/share/sounds/freedesktop/stereo";
+  # KDE Plasma's current default sound theme ("ocean") - same package
+  # referenced from niri.nix's volumePreviewCmd and
+  # hosts/MikyNB/modules/device-notify.nix's USB sounds, for a consistent
+  # set across all three instead of mixing in sound-theme-freedesktop's.
+  sounds = "${pkgs.kdePackages.ocean-sound-theme}/share/sounds/ocean/stereo";
   pythonEnv = pkgs.python3.withPackages (ps: [ ps.dbus-next ]);
 in
 {
@@ -65,7 +69,7 @@ in
           root = bus.get_proxy_object("org.bluez", "/", introspection)
           object_manager = root.get_interface("org.freedesktop.DBus.ObjectManager")
 
-          objects = await object_manager.get_managed_objects()
+          objects = await object_manager.call_get_managed_objects()
           for path, interfaces in objects.items():
               if "org.bluez.Device1" in interfaces:
                   await watch_device(bus, path)

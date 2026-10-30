@@ -50,8 +50,14 @@ let
   # canberra-gtk-play -f sidesteps the XDG sound-theme lookup (by id)
   # entirely - just plays the given file - so no package needs adding to
   # XDG_DATA_DIRS for this to resolve it.
+  #
+  # Uses KDE Plasma's own "ocean" sound theme (its current default, same
+  # package Dolphin/kio-extras already pull in - see
+  # hosts/MikyNB/modules/packages.nix) instead of sound-theme-freedesktop's
+  # version of this same clip - the freedesktop one is a flatter, more
+  # synthetic-sounding beep.
   volumePreviewCmd = "${pkgs.libcanberra-gtk3}/bin/canberra-gtk-play -f "
-    + "${pkgs.sound-theme-freedesktop}/share/sounds/freedesktop/stereo/audio-volume-change.oga";
+    + "${pkgs.kdePackages.ocean-sound-theme}/share/sounds/ocean/stereo/audio-volume-change.oga";
 
   # No swayosd OSD for keyboard-layout switches exists as a built-in flag
   # (only volume/brightness/caps-lock/etc.), so this builds one from
@@ -190,7 +196,15 @@ in
     }
 
     binds {
-        Mod+Shift+Slash { show-hotkey-overlay; }
+        // Grave (the ` key) rather than Shift+Slash: with "cz(qwerty)"
+        // active (see the `input.keyboard.xkb.layout` line above),
+        // Shift+Slash also fires from the physical "[" key - cz(qwerty)
+        // produces the literal "slash" character there at its shifted
+        // level, which collides with how niri resolves ASCII binds
+        // across layouts. Grave has no such collision: cz(qwerty) only
+        // reaches "grave" via AltGr, which this bind doesn't involve, so
+        // it stays anchored to this one physical key either way.
+        Mod+Grave { show-hotkey-overlay; }
 
         Mod+T hotkey-overlay-title="Open a Terminal: alacritty" { spawn "alacritty"; }
         Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
@@ -258,6 +272,9 @@ in
         Mod+U         { focus-workspace-down; }
         Mod+I         { focus-workspace-up; }
 
+        Mod+Ctrl+Page_Down { move-column-to-workspace-down; }
+        Mod+Ctrl+Page_Up   { move-column-to-workspace-up; }
+
         Mod+1 { focus-workspace 1; }
         Mod+2 { focus-workspace 2; }
         Mod+3 { focus-workspace 3; }
@@ -290,8 +307,16 @@ in
         Mod+Ctrl+F  { expand-column-to-available-width; }
         Mod+C       { center-column; }
 
-        Mod+Minus { set-column-width "-10%"; }
-        Mod+Equal { set-column-width "+10%"; }
+        // Numpad rather than Minus/Equal: cz(qwerty) (see
+        // input.keyboard.xkb.layout above) produces literal "minus" and
+        // "equal" on different physical keys than "us" does (the "/" and
+        // "-" keys respectively), which collides with niri's cross-layout
+        // ASCII bind resolution and makes these jump around when
+        // switching layouts. The numpad's own +/- keys have fixed
+        // KP_Add/KP_Subtract keysyms that don't depend on the active
+        // letter-layout at all - and the numpad otherwise goes unused.
+        Mod+KP_Subtract { set-column-width "-10%"; }
+        Mod+KP_Add      { set-column-width "+10%"; }
 
         Mod+V       { toggle-window-floating; }
         Mod+Shift+V { switch-focus-between-floating-and-tiling; }
