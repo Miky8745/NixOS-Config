@@ -350,6 +350,17 @@
   # cause, now fixed. Back to systemd's own default ("suspend") rather
   # than an explicit override.
 
+  # Chromium-based apps (Discord, Vivaldi - see niri.nix) create their own
+  # "app-<name>-<pid>.scope" cgroup on launch (Chromium's own systemd-oomd
+  # integration, not something niri or this config spawns), and Discord's
+  # doesn't react to SIGTERM. On logout/reboot that leaves the user manager
+  # waiting out the full default 90s TimeoutStopSec before SIGKILLing it
+  # (confirmed via journalctl: "app-discord-*.scope: Stopping timed out.
+  # Killing."), which is the ~1min19s/1min39s stall seen on roughly every
+  # 3rd reboot - whichever ones happen to catch Discord still running.
+  # Since that scope's name is dynamic (PID-based) and not ours to target
+  # with a drop-in, lower the user manager's default stop timeout instead.
+  systemd.user.extraConfig = "DefaultTimeoutStopSec=10s";
 
   programs.kdeconnect.enable = true; # also opens its firewall ports
 
