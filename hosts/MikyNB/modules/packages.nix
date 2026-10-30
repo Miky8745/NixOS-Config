@@ -21,6 +21,10 @@
     playerctl
     xwayland-satellite
     alacritty
+    # nm-applet: tray icon (docks in waybar's tray module) with a clickable
+    # menu to list/switch Wi-Fi networks and enter passwords - the waybar
+    # "network" module itself is read-only status, no click handling.
+    networkmanagerapplet
 
     # Replacements for the former KDE apps (Kate/Ark/Gwenview/Okular/...).
     # Dolphin itself is kept (GTK file managers were worse to live with day to

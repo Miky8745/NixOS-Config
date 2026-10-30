@@ -111,6 +111,9 @@ in
     // indicator binary is what actually gets kdeconnectd running too (DBus
     // activates it on demand), so spawning just the indicator is enough.
     spawn-at-startup "kdeconnect-indicator"
+    // Tray icon for graphical Wi-Fi switching (click it in waybar's tray
+    // module) - package is networkmanagerapplet, hosts/MikyNB/modules/packages.nix.
+    spawn-at-startup "nm-applet"
 
     hotkey-overlay {
     }
