@@ -155,6 +155,7 @@
     cmatrix
     pv
     pigz
+    zip
     unzip
     unrar
     p7zip
