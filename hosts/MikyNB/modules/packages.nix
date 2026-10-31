@@ -35,6 +35,13 @@
     # workers are a separate KIO plugin package. Another incremental
     # KDE-stack dependency, same tradeoff as Dolphin itself.
     kdePackages.kio-extras
+    # kservice is already pulled in as a runtime lib of Dolphin, but a
+    # library dependency's own bin/ output doesn't land on $PATH - only
+    # explicitly listed packages do. Without this, neither we nor Dolphin
+    # itself can find kbuildsycoca6 (see desktop.nix's applications.menu
+    # comment) to rebuild the app cache, by hand or automatically when KDE
+    # Frameworks notices it's stale.
+    kdePackages.kservice
     papers # PDF/document viewer, replaces Okular
     gnome-calculator
     file-roller # archive manager, replaces Ark

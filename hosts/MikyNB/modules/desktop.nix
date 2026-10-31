@@ -8,6 +8,23 @@
   services.gvfs.enable = true; # trash/network places for the GTK file-chooser portal
   services.udisks2.enable = true; # removable-drive mounting (also used by Dolphin)
 
+  # Without a Plasma session, $XDG_MENU_PREFIX is never set and nothing
+  # ships a plain /etc/xdg/menus/applications.menu. kbuildsycoca6 (KDE's
+  # app-cache builder, which Dolphin's "Open With" dialog and the
+  # home-manager mimeApps defaults in home/modules/mime.nix both depend
+  # on via KApplicationTrader) walks that exact file to enumerate
+  # installed apps - with it missing, the lookup fails silently and
+  # ksycoca ends up with zero applications, so Dolphin can't show a
+  # picker or resolve any default and falls back to asking for a raw
+  # command. Plasma normally provides this menu itself (plasma-workspace's
+  # plasma-applications.menu) - vendored verbatim as ../applications.menu
+  # instead of depending on the plasma-workspace package directly, since
+  # that package's closure drags in kwin/breeze/krunner/qtvirtualkeyboard/
+  # etc. (~250MB) just for this one static, dependency-free XML file. The
+  # <Directory> elements it references are cosmetic category icons/names
+  # only - harmless if the underlying .directory files aren't present.
+  environment.etc."xdg/menus/applications.menu".source = ../applications.menu;
+
   # Greeter: regreet (GTK, via greetd+cage), running on Wayland.
   #
   # Previously this was SDDM's own Wayland greeter (weston --shell=kiosk,
