@@ -99,6 +99,15 @@
       background: rgba(56, 60, 74, 0.8);
     }
 
+    #custom-clipboard {
+      margin-right: 8px;
+      padding: 0 16px;
+      border-radius: 10px;
+      transition: none;
+      color: #ffffff;
+      background: rgba(56, 60, 74, 0.8);
+    }
+
     /* Joined pill, same two-half pattern as #custom-clock/#custom-weather. */
     #custom-media-pause {
       padding: 0 14px;

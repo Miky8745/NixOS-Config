@@ -64,6 +64,15 @@ let
     + "name=$(${pkgs.niri}/bin/niri msg keyboard-layouts | ${pkgs.gnugrep}/bin/grep '\\*' | "
     + "${pkgs.gnused}/bin/sed -E 's/^[^0-9]*[0-9]+ //'); "
     + "${swayosdClient} --custom-message \"$name\" --custom-icon input-keyboard";
+
+  # cliphist's own watcher services live in home/modules/clipboard.nix; this
+  # is just the picker, reusing fuzzel (already the app launcher, see
+  # fuzzel.nix) in its dmenu mode instead of adding a second picker UI.
+  # `cliphist decode` turns the picked line back into the original bytes
+  # (needed for images, which `cliphist list` only shows as a text preview),
+  # and wl-copy puts that back on the clipboard for a normal paste.
+  clipboardPickerCmd = "${pkgs.cliphist}/bin/cliphist list | ${pkgs.fuzzel}/bin/fuzzel --dmenu | "
+    + "${pkgs.cliphist}/bin/cliphist decode | ${pkgs.wl-clipboard}/bin/wl-copy";
 in
 {
   xdg.configFile."niri/config.kdl".text = ''
@@ -86,6 +95,7 @@ in
         // would end at the first one of those instead of at the end of
         // the command.
         Mod+Space hotkey-overlay-title="Switch Keyboard Layout" { spawn-sh r#"${switchLayoutCmd}"#; }
+        Mod+Shift+C hotkey-overlay-title="Clipboard History" { spawn-sh r#"${clipboardPickerCmd}"#; }
 
         // swayosd-client both makes the change and pops up the OSD (see
         // home/modules/swayosd.nix) - replaces the old direct wpctl/

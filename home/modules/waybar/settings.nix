@@ -1,5 +1,13 @@
 { pkgs, ... }:
 
+let
+  # Same pipeline as the Mod+Shift+C bind in niri/binds.nix - duplicated
+  # here rather than shared, matching how lockCmd is duplicated across
+  # swayidle.nix/wlogout/default.nix/niri/binds.nix in this config. Keep
+  # both copies in sync if this ever changes.
+  clipboardPickerCmd = "${pkgs.cliphist}/bin/cliphist list | ${pkgs.fuzzel}/bin/fuzzel --dmenu | "
+    + "${pkgs.cliphist}/bin/cliphist decode | ${pkgs.wl-clipboard}/bin/wl-copy";
+in
 {
   programs.waybar.settings = {
     mainBar = {
@@ -8,7 +16,7 @@
 
       modules-left = [ "niri/workspaces" "niri/language" "niri/window" ];
       modules-center = [ "custom/clock" "custom/weather" ];
-      modules-right = [ "network" "custom/notification" "custom/media-pause" "custom/media-next" "pulseaudio" "memory" "cpu" "tray" "custom/power" ];
+      modules-right = [ "network" "custom/notification" "custom/clipboard" "custom/media-pause" "custom/media-next" "pulseaudio" "memory" "cpu" "tray" "custom/power" ];
 
       "niri/workspaces" = {
         format = "{index}";
@@ -68,6 +76,16 @@
         on-click = "swaync-client -t -sw";
         on-click-right = "swaync-client -d -sw";
         escape = true;
+      };
+
+      # Opens the same cliphist/fuzzel picker as the Mod+Shift+C bind
+      # (niri/binds.nix) - a visible entry point for anyone who doesn't
+      # know/use the keybind.
+      "custom/clipboard" = {
+        format = ""; # nf-fa-clipboard
+        tooltip = true;
+        tooltip-format = "Clipboard History";
+        on-click = clipboardPickerCmd;
       };
 
       # Media playback controls - play/pause toggles, the other only

@@ -17,6 +17,7 @@
     ./modules/theme.nix
     ./modules/environment.nix
     ./modules/mime.nix
+    ./modules/clipboard.nix
     ./modules/device-notify
   ];
 
