@@ -6,9 +6,9 @@
   imports = [
     ./modules/git.nix
     ./modules/zsh.nix
-    ./modules/niri.nix
-    ./modules/waybar.nix
-    ./modules/wlogout.nix
+    ./modules/niri
+    ./modules/waybar
+    ./modules/wlogout
     ./modules/fuzzel.nix
     ./modules/swaync.nix
     ./modules/swayidle.nix
@@ -17,7 +17,7 @@
     ./modules/theme.nix
     ./modules/environment.nix
     ./modules/mime.nix
-    ./modules/device-notify.nix
+    ./modules/device-notify
   ];
 
   home.username = "miky8745";

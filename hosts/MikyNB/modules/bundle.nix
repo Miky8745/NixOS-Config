@@ -3,7 +3,7 @@
 {
   imports = [
     ./boot.nix
-    ./power-button.nix
+    ./power-button
     ./nvidia.nix
     ./networking.nix
     ./locale.nix
@@ -20,6 +20,6 @@
     ./user.nix
     ./packages.nix
     ./nix.nix
-    ./device-notify.nix
+    ./device-notify
   ];
 }

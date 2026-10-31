@@ -1,9 +1,6 @@
-# Desktop notification + sound whenever a USB device is physically
-# plugged in or removed. Bluetooth connect/disconnect is handled
-# separately in home/modules/device-notify.nix - that one runs inside the
-# user's own session (watching BlueZ over D-Bus) and so needs none of the
-# root -> user-session bridging this file exists for.
-{ pkgs, ... }:
+# Backing shell script for hosts/MikyNB/modules/device-notify/default.nix's
+# USB hotplug udev rule.
+{ pkgs }:
 
 let
   # KDE Plasma's current default sound theme ("ocean") - same package
@@ -15,6 +12,7 @@ let
   # logically available - matching exactly what's going on here.
   sounds = "${pkgs.kdePackages.ocean-sound-theme}/share/sounds/ocean/stereo";
 
+in
   # udev RUN+= rules execute as root with no session at all - no
   # XDG_RUNTIME_DIR, no D-Bus, nothing notify-send/canberra-gtk-play need
   # to reach the real desktop. This bridges into the actual user session
@@ -69,7 +67,7 @@ let
   # exactly one word here no matter which side is empty - bash does the
   # splitting instead of udev, on a character udev's own splitting never
   # touches.
-  notifyScript = pkgs.writeShellScript "device-notify" ''
+pkgs.writeShellScript "device-notify" ''
     set -euo pipefail
     action="$1"
     kernel="$2"
@@ -129,16 +127,4 @@ let
         XDG_RUNTIME_DIR="$runtime_dir" \
         DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_dir/bus" \
         ${pkgs.pipewire}/bin/pw-play "$sound"
-  '';
-in
-{
-  services.udev.extraRules = ''
-    # ENV{DEVTYPE}=="usb_device" matches the whole physical device exactly
-    # once; without it, every interface of a multi-function device (e.g.
-    # a webcam's separate video/audio/HID interfaces) would each fire
-    # their own add/remove, turning one physical plug/unplug into a burst
-    # of duplicate notifications and overlapping sounds.
-    SUBSYSTEM=="usb", ACTION=="add", ENV{DEVTYPE}=="usb_device", RUN+="${pkgs.systemd}/bin/systemd-run --quiet --no-block ${notifyScript} added $kernel $env{ID_MODEL_ENC}|$env{ID_VENDOR_ENC} $env{ID_VENDOR_FROM_DATABASE} $env{ID_MODEL_FROM_DATABASE}"
-    SUBSYSTEM=="usb", ACTION=="remove", ENV{DEVTYPE}=="usb_device", RUN+="${pkgs.systemd}/bin/systemd-run --quiet --no-block ${notifyScript} removed $kernel $env{ID_MODEL_ENC}|$env{ID_VENDOR_ENC} $env{ID_VENDOR_FROM_DATABASE} $env{ID_MODEL_FROM_DATABASE}"
-  '';
-}
+''
