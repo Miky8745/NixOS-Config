@@ -105,6 +105,7 @@
     # Office
     libreoffice-qt
     meld
+    texlive.combined.scheme-medium
 
     # Engineering / making
     freecad
