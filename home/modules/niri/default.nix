@@ -23,6 +23,7 @@
         touchpad {
             tap
             natural-scroll
+            disabled-on-external-mouse
         }
     }
 
