@@ -21,5 +21,6 @@
     ./packages.nix
     ./nix.nix
     ./device-notify
+    ./gh-bot.nix
   ];
 }
