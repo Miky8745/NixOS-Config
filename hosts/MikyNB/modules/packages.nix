@@ -1,5 +1,32 @@
 { pkgs, ... }:
 
+let
+  # arduino-ide ships as a wrapped AppImage (pkgs/by-name/ar/arduino-ide) that
+  # only bundles libsecret in its FHS sandbox. It also dlopen()s libxkbfile
+  # for keyboard-layout handling, which isn't in that sandbox, so the app
+  # fails to start with "libxkbfile.so.1: cannot open shared object file".
+  # Rebuild the wrapper with libxkbfile added.
+  arduino-ide-fixed = pkgs.appimageTools.wrapType2 {
+    pname = "arduino-ide";
+    version = pkgs.arduino-ide.version;
+    src = pkgs.arduino-ide.src;
+    extraPkgs = p: [ p.libsecret p.libxkbfile ];
+    extraInstallCommands = ''
+      install -Dm444 ${pkgs.appimageTools.extractType2 {
+        pname = "arduino-ide";
+        version = pkgs.arduino-ide.version;
+        src = pkgs.arduino-ide.src;
+      }}/arduino-ide.desktop -t $out/share/applications/
+      install -Dm444 ${pkgs.appimageTools.extractType2 {
+        pname = "arduino-ide";
+        version = pkgs.arduino-ide.version;
+        src = pkgs.arduino-ide.src;
+      }}/arduino-ide.png -t $out/share/icons/hicolor/512x512/apps
+      substituteInPlace $out/share/applications/arduino-ide.desktop --replace-fail 'Exec=AppRun --no-sandbox %U' 'Exec=arduino-ide %U'
+    '';
+    meta = pkgs.arduino-ide.meta;
+  };
+in
 {
   # ---------- Packages ----------
   environment.systemPackages = with pkgs; [
@@ -111,7 +138,8 @@
     freecad
     kicad
     prusa-slicer
-    arduino-ide
+    arduino-ide-fixed
+    arduino-cli
     rpi-imager
 
     # Games
@@ -124,6 +152,7 @@
     # instead of the proprietary MS one. Settings/extensions/keybindings
     # are compatible with VS Code, just stored under ~/.config/VSCodium.
     vscodium
+    zed-editor
     git
     lazygit
     godot
@@ -141,8 +170,7 @@
     uv
     pipx
     (python3.withPackages (ps: with ps; [ numpy pyqt6 shapely tqdm jinja2 ]))
-    dotnetCorePackages.sdk_10_0
-    dotnetCorePackages.sdk_8_0
+    dotnetCorePackages.sdk_9_0
     mkdocs
 
     # CLI tools
