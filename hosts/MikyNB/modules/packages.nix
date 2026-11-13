@@ -133,6 +133,7 @@ in
     libreoffice-qt
     meld
     texlive.combined.scheme-medium
+    simple-scan
 
     # Engineering / making
     freecad
