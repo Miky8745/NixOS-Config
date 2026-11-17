@@ -20,6 +20,7 @@
     ./modules/clipboard.nix
     ./modules/device-notify
     ./modules/update-reminder.nix
+    ./modules/claude-skills.nix
   ];
 
   home.username = "miky8745";
