@@ -44,6 +44,11 @@ in
     waypaper
     polkit_gnome
     libnotify
+    # GUI for dragging monitor positions/scale/rotation into place - an
+    # alternative to hand-editing the `output` blocks in
+    # home/modules/niri/default.nix (which it also understands/writes to,
+    # it has native Niri support unlike most wlroots output tools).
+    nwg-displays
     brightnessctl
     playerctl
     xwayland-satellite

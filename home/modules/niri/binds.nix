@@ -157,6 +157,9 @@ in
         Mod+Ctrl+Page_Down { move-column-to-workspace-down; }
         Mod+Ctrl+Page_Up   { move-column-to-workspace-up; }
 
+        Mod+Shift+Page_Down { focus-monitor-down; }
+        Mod+Shift+Page_Up   { focus-monitor-up; }
+
         Mod+1 { focus-workspace 1; }
         Mod+2 { focus-workspace 2; }
         Mod+3 { focus-workspace 3; }

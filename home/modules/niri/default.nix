@@ -27,13 +27,19 @@
         }
     }
 
-    // Run `niri msg outputs` once logged in to find your output name,
-    // then uncomment and adjust a block like this if you want a fixed
-    // resolution/scale/position instead of niri's automatic choice.
-    // output "eDP-1" {
-    //     mode "1920x1080@60.000"
-    //     scale 1
-    // }
+    // By default niri places outputs side by side, sorted by connector
+    // name (DP-2 left of eDP-1) - that's what made the cursor cross
+    // between them left/right. These positions stack the external Philips
+    // monitor (DP-2) above the laptop screen (eDP-1) instead, matching the
+    // physical desk setup. Values are in logical (scaled) pixels - see
+    // `niri msg outputs` for each output's logical size; DP-2's logical
+    // height is eDP-1's y-offset below it.
+    output "DP-2" {
+        position x=0 y=0
+    }
+    output "eDP-1" {
+        position x=0 y=1440
+    }
 
     layout {
         gaps 16
