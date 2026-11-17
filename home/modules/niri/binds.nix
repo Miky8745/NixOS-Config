@@ -160,6 +160,9 @@ in
         Mod+Shift+Page_Down { focus-monitor-down; }
         Mod+Shift+Page_Up   { focus-monitor-up; }
 
+        Mod+Ctrl+Shift+Page_Down { move-column-to-monitor-down; }
+        Mod+Ctrl+Shift+Page_Up   { move-column-to-monitor-up; }
+
         Mod+1 { focus-workspace 1; }
         Mod+2 { focus-workspace 2; }
         Mod+3 { focus-workspace 3; }
