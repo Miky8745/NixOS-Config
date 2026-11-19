@@ -175,7 +175,7 @@ in
     claude-code
     uv
     pipx
-    (python3.withPackages (ps: with ps; [ numpy pyqt6 shapely tqdm jinja2 ]))
+    (python3.withPackages (ps: with ps; [ numpy pyqt6 shapely tqdm jinja2 matplotlib ]))
     dotnetCorePackages.sdk_9_0
     jdk21
 
