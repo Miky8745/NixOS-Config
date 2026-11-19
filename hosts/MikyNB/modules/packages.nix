@@ -177,7 +177,7 @@ in
     pipx
     (python3.withPackages (ps: with ps; [ numpy pyqt6 shapely tqdm jinja2 ]))
     dotnetCorePackages.sdk_9_0
-    mkdocs
+    jdk21
 
     # CLI tools
     wget
